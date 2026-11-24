@@ -40,7 +40,7 @@ main:    #MAIN
 	
 	j end_program
 
-calcular_index:#(x,y)
+calcular_index:#(x,y) calcula o indice do pixel no array de cores dados x e y.
 	move $t0, $a1
 	sll $t0, $t0, 8 # 4(y * 64) 
 	sll $t1, $a0, 2 # 4x
@@ -48,7 +48,7 @@ calcular_index:#(x,y)
 	move $v0, $t0 
 	jr $ra
 	
-desenhar_pixel:#(x,y,cor)
+desenhar_pixel:# (a0, a1, a2) = (x,y,cor) -> desenha um pixel de cor "cor" em (x,y)
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	
@@ -61,28 +61,43 @@ desenhar_pixel:#(x,y,cor)
 	addi, $sp, $sp, 4
 	jr $ra
 	
-desenhar_player:
+desenhar_player:# (a0) = (cor) -> desenha a nave na posicao (player_x, player_y) por pixels
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	
 	move $a2, $a0
+	#x y
 	lw $a0, player_x
 	lw $a1, player_y
 	#li $a2, AZUL
 	jal desenhar_pixel
+	
+	#x+1 y
 	addi $a0, $a0, 1
 	jal desenhar_pixel
+	
+	#x-1 y
 	addi $a0, $a0, -2
 	jal desenhar_pixel
+	
+	#x-1 y-1
 	addi $a1, $a1, -1
 	jal desenhar_pixel
+	
+	#x y-1
 	addi $a0, $a0, 1
 	jal desenhar_pixel
+	
+	#x+1 y-1
 	addi $a0, $a0, 1
 	jal desenhar_pixel
+	
+	#x+2 y
 	addi $a1, $a1, 1
 	addi $a0, $a0, 1
 	jal desenhar_pixel
+	
+	#x-2 y
 	addi $a0, $a0, -4
 	jal desenhar_pixel
 
@@ -91,8 +106,9 @@ desenhar_player:
 	jr $ra
 	
 movimentar_player:
-	addi $sp, $sp, -4
+	addi $sp, $sp, -8
 	sw $ra, 0($sp)
+	sw $s0, 4($sp)
 	
 	lw $t0, key_pressed
 	andi $t0, $t0, 1
@@ -101,20 +117,21 @@ movimentar_player:
 	beq $t0, 44, movimentar_player_esquerda
 	beq $t0, 46, movimentar_player_direita
 	beq $t0, 32, movimentar_player_atirar
+	j movimentar_player_fim
 	movimentar_player_esquerda:
-		lw $t7, player_x
-		ble, $t7, 2, movimentar_player_fim
+		lw $s0, player_x
+		ble, $s0, 2, movimentar_player_fim
 		li $a0, PRETO
 		jal desenhar_player
-		addi $t8, $t7, -1
+		addi $t8, $s0, -1
 		sw $t8, player_x
 		j movimentar_player_redesenhar
 	movimentar_player_direita:
-		lw $t7, player_x
-		bge $t7, 61, movimentar_player_fim
+		lw $s0, player_x
+		bge $s0, 61, movimentar_player_fim
 		li $a0, PRETO
 		jal desenhar_player
-		addi $t8, $t7, 1
+		addi $t8, $s0, 1
 		sw $t8, player_x
 		j movimentar_player_redesenhar
 	movimentar_player_atirar:
@@ -126,15 +143,19 @@ movimentar_player:
 		jal desenhar_player
 	movimentar_player_fim:
 	
+	lw $s0, 4($sp)
 	lw $ra, 0($sp)
-	addi, $sp, $sp, 4
+	addi, $sp, $sp, 8
 	jr $ra
 	
-atirar:
+atirar: # cria um tiro caso nao exista
+	# if existe_tiro return;
 	lw $t0, existe_tiro
 	beqz $t0, atirar_criar_tiro
 	j atirar_fim
 	atirar_criar_tiro:
+		# existe_tiro = 1;
+		# (tiro_x, tiro_y) = (player_x, TIRO_Y0)
 		li $t0, 1
 		sw $t0, existe_tiro
 		lw $t0, player_x
@@ -150,6 +171,7 @@ desenhar_tiro:#(cor)
 	sw $ra, 0($sp)
 	move $a2, $a0
 	
+	# if not exist_tiro return
 	lw $t0, existe_tiro
 	beqz $t0, desenhar_tiro_fim
 	
@@ -164,8 +186,12 @@ desenhar_tiro:#(cor)
 		jr $ra
 
 movimentar_tiro:
-	addi $sp, $sp, -4
+	addi $sp, $sp, -8
 	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	
+	lw $t0, existe_tiro
+	beqz $t0, movimentar_tiro_fim
 	
 	lw $t0, tiro_incremented_position
 	addi $t0, $t0, 1
@@ -181,20 +207,25 @@ movimentar_tiro:
 	li $a0, PRETO
 	jal desenhar_tiro
 	
-	lw $t0, tiro_y
-	addi $t0, $t0, -1
-	sw $t0, tiro_y
+	lw $s0, tiro_y
+	addi $s0, $s0, -1
+	sw $s0, tiro_y
 	
+	bgez $s0, movimentar_tiro_desenhar
+	jal deletar_tiro
+	j movimentar_tiro_fim
+	
+	movimentar_tiro_desenhar:
 	li $a0, BRANCO
 	jal desenhar_tiro
 	
-	bgez $t0, movimentar_tiro_fim
 	
-	jal deletar_tiro
 	
 	movimentar_tiro_fim:
+	
+	lw $s0, 4($sp)
 	lw $ra, 0($sp)
-	addi, $sp, $sp, 4
+	addi, $sp, $sp, 8
 	jr $ra
 	
 deletar_tiro:
