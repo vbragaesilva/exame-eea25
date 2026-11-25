@@ -16,6 +16,9 @@
 	tiro_x: .word 0
 	tiro_y: .word 0
 	tiro_incremented_position: .word 0
+	inimigo_x: .word 32
+	inimigo_y: .word 6
+	inimigo_dir: .word 1
 	
 
 .text
@@ -219,27 +222,31 @@ movimentar_tiro:
 	sw $ra, 0($sp)
 	sw $s0, 4($sp)
 	
+	# if not existe_tiro return
 	lw $t0, existe_tiro
 	beqz $t0, movimentar_tiro_fim
 	
+	#tiro_incremented_position++
+	#if tiro_incremented_position < SIZE_INCREMENT return
 	lw $t0, tiro_incremented_position
 	addi $t0, $t0, 1
 	sw $t0, tiro_incremented_position
-	li $t1, SIZE_INCREMENT
-	div $t0, $t1
-	mflo $t2
-	beqz $t2, movimentar_tiro_fim
+	blt $t0, SIZE_INCREMENT, movimentar_tiro_fim
 	
+	#tiro_incremented_position = 0
 	li $t0, 0
 	sw $t0, tiro_incremented_position
 	
+	#apaga tiro atual
 	li $a0, PRETO
 	jal desenhar_tiro
 	
+	#tiro_y --
 	lw $s0, tiro_y
 	addi $s0, $s0, -1
 	sw $s0, tiro_y
 	
+	# if tiro_y < 0: deletar_tiro; return
 	bgez $s0, movimentar_tiro_desenhar
 	jal deletar_tiro
 	j movimentar_tiro_fim
@@ -257,7 +264,7 @@ movimentar_tiro:
 	addi, $sp, $sp, 8
 	jr $ra
 	
-deletar_tiro:
+deletar_tiro: # existe_tiro = 0
 	li $t0, 0
 	sw $t0, existe_tiro
 	jr $ra
