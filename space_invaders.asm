@@ -195,9 +195,9 @@ atirar: # cria um tiro caso nao exista e toca o som do disparo
 		jr $ra
 
 som_tiro: # toca o som do disparo (syscall 31 = MIDI assincrono, nao trava o jogo)
-	li $a0, 80   # nota (tom agudo)
-	li $a1, 150  # duracao em ms
-	li $a2, 127  # instrumento: Gunshot
+	li $a0, 84   # nota (tom agudo)
+	li $a1, 250  # duracao em ms
+	li $a2, 118  # instrumento: Synth Drum (tom que cai rapido = "piu")
 	li $a3, 100  # volume (0-127)
 	li $v0, 31
 	syscall
