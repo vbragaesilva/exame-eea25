@@ -21,7 +21,7 @@
 	inimigo_x: .word 32
 	inimigo_y: .word 6
 	inimigo_dir: .word 1
-	inimigo_incremented_position: 0
+	inimigo_incremented_position: .word 0
 	
 
 .text
