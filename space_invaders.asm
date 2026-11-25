@@ -105,32 +105,45 @@ desenhar_player:# (a0) = (cor) -> desenha a nave na posicao (player_x, player_y)
 	addi, $sp, $sp, 4
 	jr $ra
 	
-movimentar_player:
+movimentar_player:# lógica de movimentação do player, só redesenha caso tenha mudado a posição
 	addi $sp, $sp, -8
 	sw $ra, 0($sp)
 	sw $s0, 4($sp)
 	
+	# if not key_pressed return
 	lw $t0, key_pressed
 	andi $t0, $t0, 1
 	beqz $t0, movimentar_player_fim
+	
+	# switch key_code
 	lw $t0, key_code
-	beq $t0, 44, movimentar_player_esquerda
-	beq $t0, 46, movimentar_player_direita
-	beq $t0, 32, movimentar_player_atirar
+	beq $t0, 44, movimentar_player_esquerda # "<"
+	beq $t0, 46, movimentar_player_direita  # ">"
+	beq $t0, 32, movimentar_player_atirar   # " "
 	j movimentar_player_fim
 	movimentar_player_esquerda:
 		lw $s0, player_x
+		 # if player_x <= 2 return
 		ble, $s0, 2, movimentar_player_fim
-		li $a0, PRETO
+		
+		#apagar player atual
+		li $a0, PRETO 
 		jal desenhar_player
+		
+		#player_x --
 		addi $t8, $s0, -1
 		sw $t8, player_x
 		j movimentar_player_redesenhar
 	movimentar_player_direita:
 		lw $s0, player_x
+		# if player_x >= 61 return
 		bge $s0, 61, movimentar_player_fim
+		
+		#apagar player atual
 		li $a0, PRETO
 		jal desenhar_player
+		
+		#player_x ++
 		addi $t8, $s0, 1
 		sw $t8, player_x
 		j movimentar_player_redesenhar
@@ -138,7 +151,7 @@ movimentar_player:
 		jal atirar
 		j movimentar_player_fim
 		
-	movimentar_player_redesenhar:
+	movimentar_player_redesenhar:#desenhar player na nova posição
 		li $a0, AZUL
 		jal desenhar_player
 	movimentar_player_fim:
