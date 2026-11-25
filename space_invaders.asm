@@ -22,7 +22,9 @@
 	inimigo_y: .word 6
 	inimigo_dir: .word 1
 	inimigo_incremented_position: 0
-	
+	msg_vitoria: .asciiz "Voce venceu! 20 pontos!"
+	msg_derrota: .asciiz "Game over! Acabaram as vidas."
+
 
 .text
 main:    #MAIN
@@ -41,8 +43,9 @@ main:    #MAIN
 		jal movimentar_tiro
 		
 		jal movimentar_player
-		
-		
+
+		jal checar_fim_de_jogo
+
 		jal sleep1
 		j main_loop
 	
@@ -275,6 +278,23 @@ limpar_tela:
 	addi, $sp, $sp, 4
 	jr $ra
 	
+
+checar_fim_de_jogo: # termina o jogo com score >= 20 (vitoria) ou vidas <= 0 (derrota)
+	lw $t0, score
+	bge $t0, 20, vitoria
+	lw $t0, vidas
+	blez $t0, derrota
+	jr $ra
+	vitoria:
+		la $a0, msg_vitoria
+		j mostrar_msg_e_sair
+	derrota:
+		la $a0, msg_derrota
+	mostrar_msg_e_sair:
+		li $a1, 1  # tipo da janela: informacao
+		li $v0, 55 # janela de mensagem
+		syscall
+		j end_program
 
 sleep1:
 	li $v0, 32
