@@ -9,7 +9,7 @@
 	.eqv DISPLAY_LENGTH 8192
 	.eqv TIRO_Y0 26
 	.eqv SIZE_INCREMENT 20
-	.eqv INIMIGO_SIZE_INCREMENT 20
+	.eqv INIMIGO_SIZE_INCREMENT 80
 	player_x: .word 32
 	player_y: .word 28
 	vidas: .word 5
@@ -32,7 +32,7 @@ main:    #MAIN
 	jal desenhar_player
 	main_loop:
 		
-		# TODO movimentar inimigos
+		jal movimentar_inimigo
 		
 		# TODO desenhar score
 		
@@ -273,6 +273,11 @@ deletar_tiro: # existe_tiro = 0
 	li $t0, 0
 	sw $t0, existe_tiro
 	jr $ra
+	
+	
+movimentar_inimigo:
+	jr $ra
+	
 	
 limpar_tela:
 	addi $sp, $sp, -4
