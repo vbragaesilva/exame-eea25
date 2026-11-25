@@ -161,7 +161,10 @@ movimentar_player:# lógica de movimentação do player, só redesenha caso tenh
 	addi, $sp, $sp, 8
 	jr $ra
 	
-atirar: # cria um tiro caso nao exista
+atirar: # cria um tiro caso nao exista e toca o som do disparo
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
 	# if existe_tiro return;
 	lw $t0, existe_tiro
 	beqz $t0, atirar_criar_tiro
@@ -175,9 +178,22 @@ atirar: # cria um tiro caso nao exista
 		li $t1, TIRO_Y0
 		sw $t0, tiro_x
 		sw $t1, tiro_y
-	
+
+		jal som_tiro
+
 	atirar_fim:
+		lw $ra, 0($sp)
+		addi $sp, $sp, 4
 		jr $ra
+
+som_tiro: # toca o som do disparo (syscall 31 = MIDI assincrono, nao trava o jogo)
+	li $a0, 80   # nota (tom agudo)
+	li $a1, 150  # duracao em ms
+	li $a2, 127  # instrumento: Gunshot
+	li $a3, 100  # volume (0-127)
+	li $v0, 31
+	syscall
+	jr $ra
 
 desenhar_tiro:#(cor)
 	addi $sp, $sp, -4
