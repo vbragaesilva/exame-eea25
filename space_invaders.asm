@@ -66,7 +66,7 @@ main:    #MAIN
 	li $a1, BRANCO
 	jal desenhar_score
 
-	# ultimo_tiro_inimigo = agora (o primeiro tiro sai 1 s depois do comeco)
+	# ultimo_tiro_inimigo = agora 
 	li $v0, 30
 	syscall
 	sw $a0, ultimo_tiro_inimigo
