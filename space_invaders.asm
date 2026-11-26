@@ -4,6 +4,7 @@
 	.eqv VERM 0x00FF0000
 	.eqv PRETO 0x00000000
 	.eqv ROSA 0x00FF69B4
+	.eqv AMARELO 0x00FFFF00
 	.eqv HUD_COLOR 0x00FFFFFF
 	.eqv display 0x10008000
 	.eqv key_pressed 0xFFFF0000
@@ -16,6 +17,8 @@
 	.eqv INIMIGO_MIN_X 2  # o inimigo ocupa de x-2 ate x+2, entao x >= 2 (borda esquerda da tela)
 	.eqv INIMIGO_MAX_X 51 # e x <= 51 para nao passar de x=53 (antes da linha do HUD)
 	.eqv INIMIGO_RESPAWN 500 # voltas do loop que o inimigo fica morto antes de renascer (~1 s)
+	.eqv TIRO_INIMIGO_INTERVALO 1000 # ms entre os tiros do inimigo
+	.eqv TIRO_INIMIGO_SIZE_INCREMENT 15 # voltas do loop para o tiro do inimigo descer 1 pixel
 	.eqv SCORE_X 60 # x do digito das unidades (a dezena fica 4 colunas a esquerda, em x=56)
 	.eqv SCORE_Y 5  # y da linha de baixo dos digitos (ocupam as linhas 1 a 5; linha 0 e 6 livres)
 	.eqv CORACAO_X 57 # x dos coracoes
@@ -36,6 +39,11 @@
 	inimigo_incremented_position: .word 0
 	inimigo_vivo: .word 1 # 1 = vivo, 0 = morto (esperando renascer)
 	inimigo_timer: .word 0 # voltas desde que o inimigo morreu
+	existe_tiro_inimigo: .word 0
+	tiro_inimigo_x: .word 0
+	tiro_inimigo_y: .word 0
+	tiro_inimigo_incremented_position: .word 0
+	ultimo_tiro_inimigo: .word 0 # tempo (ms, syscall 30) do ultimo tiro do inimigo
 	
 
 .text
@@ -51,9 +59,18 @@ main:    #MAIN
 	lw $a0, score
 	li $a1, BRANCO
 	jal desenhar_score
+
+	# ultimo_tiro_inimigo = agora (o primeiro tiro sai 1 s depois do comeco)
+	li $v0, 30
+	syscall
+	sw $a0, ultimo_tiro_inimigo
 	main_loop:
 
 		jal movimentar_inimigo
+
+		jal inimigo_atirar
+
+		jal movimentar_tiro_inimigo
 
 		jal movimentar_tiro
 		
@@ -392,6 +409,98 @@ movimentar_tiro:
 deletar_tiro: # existe_tiro = 0
 	li $t0, 0
 	sw $t0, existe_tiro
+	jr $ra
+
+inimigo_atirar:# a cada TIRO_INIMIGO_INTERVALO ms cria um tiro logo abaixo do inimigo (se ele estiver vivo e nao tiver outro tiro dele na tela)
+	# agora = tempo do sistema em ms (syscall 30: parte baixa em a0)
+	li $v0, 30
+	syscall
+
+	# if agora - ultimo_tiro_inimigo < TIRO_INIMIGO_INTERVALO return
+	lw $t0, ultimo_tiro_inimigo
+	subu $t1, $a0, $t0
+	bltu $t1, TIRO_INIMIGO_INTERVALO, inimigo_atirar_fim
+
+	# if not inimigo_vivo or existe_tiro_inimigo return
+	lw $t0, inimigo_vivo
+	beqz $t0, inimigo_atirar_fim
+	lw $t0, existe_tiro_inimigo
+	bnez $t0, inimigo_atirar_fim
+
+	# ultimo_tiro_inimigo = agora
+	sw $a0, ultimo_tiro_inimigo
+
+	# existe_tiro_inimigo = 1
+	# (tiro_inimigo_x, tiro_inimigo_y) = (inimigo_x, inimigo_y + 2), logo abaixo do inimigo
+	li $t0, 1
+	sw $t0, existe_tiro_inimigo
+	lw $t0, inimigo_x
+	sw $t0, tiro_inimigo_x
+	lw $t0, inimigo_y
+	addi $t0, $t0, 2
+	sw $t0, tiro_inimigo_y
+	sw $zero, tiro_inimigo_incremented_position
+
+	inimigo_atirar_fim:
+	jr $ra
+
+desenhar_tiro_inimigo:# (a0) = (cor) -> desenha o tiro do inimigo em (tiro_inimigo_x, tiro_inimigo_y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	move $a2, $a0
+
+	# if not existe_tiro_inimigo return
+	lw $t0, existe_tiro_inimigo
+	beqz $t0, desenhar_tiro_inimigo_fim
+
+	lw $a0, tiro_inimigo_x
+	lw $a1, tiro_inimigo_y
+	jal desenhar_pixel
+
+	desenhar_tiro_inimigo_fim:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SIZE_INCREMENT voltas; some quando sai por baixo da tela
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	# if not existe_tiro_inimigo return
+	lw $t0, existe_tiro_inimigo
+	beqz $t0, movimentar_tiro_inimigo_fim
+
+	#tiro_inimigo_incremented_position++
+	#if tiro_inimigo_incremented_position < TIRO_INIMIGO_SIZE_INCREMENT return
+	lw $t0, tiro_inimigo_incremented_position
+	addi $t0, $t0, 1
+	sw $t0, tiro_inimigo_incremented_position
+	blt $t0, TIRO_INIMIGO_SIZE_INCREMENT, movimentar_tiro_inimigo_fim
+
+	#tiro_inimigo_incremented_position = 0
+	sw $zero, tiro_inimigo_incremented_position
+
+	#apaga tiro atual
+	li $a0, PRETO
+	jal desenhar_tiro_inimigo
+
+	#tiro_inimigo_y++
+	lw $t0, tiro_inimigo_y
+	addi $t0, $t0, 1
+	sw $t0, tiro_inimigo_y
+
+	# if tiro_inimigo_y > 31 (saiu por baixo da tela): existe_tiro_inimigo = 0; return
+	ble $t0, 31, movimentar_tiro_inimigo_desenhar
+	sw $zero, existe_tiro_inimigo
+	j movimentar_tiro_inimigo_fim
+
+	movimentar_tiro_inimigo_desenhar:
+	li $a0, AMARELO
+	jal desenhar_tiro_inimigo
+
+	movimentar_tiro_inimigo_fim:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
 	jr $ra
 
 tiro_acertou_inimigo:# -> v0 = 1 se o tiro (tiro_x, tiro_y) esta dentro do inimigo vivo, senao v0 = 0
