@@ -15,9 +15,13 @@
 	.eqv PLAYER_MAX_X 51
 	.eqv SCORE_X 60 # x do digito das unidades (a dezena fica 4 colunas a esquerda, em x=56)
 	.eqv SCORE_Y 5  # y da linha de baixo dos digitos (ocupam as linhas 1 a 5; linha 0 e 6 livres)
+	.eqv CORACAO_X 57 # x dos coracoes
+	.eqv CORACAO_Y0 7 # y do primeiro coracao
+	.eqv CORACAO_PASSO 5 # altura 4 + 1 de espaco
 	player_x: .word 32
 	player_y: .word 28
 	vidas: .word 5
+	coracao_atual_y: .word 27 # y do proximo coracao a apagar
 	score: .word 0
 	existe_tiro: .word 0
 	tiro_x: .word 0
@@ -35,15 +39,15 @@ main:    #MAIN
 	jal limpar_tela
 	li $a0, AZUL
 	jal desenhar_player
+	jal desenhar_hud_linha
+	jal desenhar_hud_vidas
 	main_loop:
-		
+
 		jal movimentar_inimigo
-		
+
 		# TODO desenhar score
 		
-		# TODO desenhar vidas
 		
-		jal desenhar_hud
 	
 		jal movimentar_tiro
 		
@@ -120,11 +124,11 @@ desenhar_player:# (a0) = (cor) -> desenha a nave na posicao (player_x, player_y)
 	addi, $sp, $sp, 4
 	jr $ra
 
-desenhar_coracao:# (a0, a1, a2) = (x, y, cor) -> desenha um coracao 5x4 com canto superior esquerdo em (x, y)
+desenhar_coracao:# (a0, a1, a2) = (x,y,cor) -> desenha um coracao 5x4 com canto superior esquerdo em (x,y)
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
-	#linha 0: colunas 1 e 3
+	#linha 0
 	#x+1 y
 	addi $a0, $a0, 1
 	jal desenhar_pixel
@@ -133,7 +137,7 @@ desenhar_coracao:# (a0, a1, a2) = (x, y, cor) -> desenha um coracao 5x4 com cant
 	addi $a0, $a0, 2
 	jal desenhar_pixel
 
-	#linha 1: colunas 0 a 4
+	#linha 1
 	#x+3 y+1
 	addi $a1, $a1, 1
 	jal desenhar_pixel
@@ -154,7 +158,7 @@ desenhar_coracao:# (a0, a1, a2) = (x, y, cor) -> desenha um coracao 5x4 com cant
 	addi $a0, $a0, -1
 	jal desenhar_pixel
 
-	#linha 2: colunas 1 a 3
+	#linha 2
 	#x+1 y+2
 	addi $a1, $a1, 1
 	addi $a0, $a0, 1
@@ -168,7 +172,7 @@ desenhar_coracao:# (a0, a1, a2) = (x, y, cor) -> desenha um coracao 5x4 com cant
 	addi $a0, $a0, 1
 	jal desenhar_pixel
 
-	#linha 3: coluna 2
+	#linha 3
 	#x+2 y+3
 	addi $a1, $a1, 1
 	addi $a0, $a0, -1
@@ -260,9 +264,9 @@ atirar: # cria um tiro caso nao exista e toca o som do disparo
 		jr $ra
 
 som_tiro: # toca o som do disparo (syscall 31 = MIDI assincrono, nao trava o jogo)
-	li $a0, 80   # nota (tom agudo)
-	li $a1, 150  # duracao em ms
-	li $a2, 127  # instrumento: Gunshot
+	li $a0, 84   # nota (tom agudo)
+	li $a1, 250  # duracao em ms
+	li $a2, 118  # instrumento: Synth Drum (tom que cai rapido = "piu")
 	li $a3, 100  # volume (0-127)
 	li $v0, 31
 	syscall
@@ -343,7 +347,7 @@ deletar_tiro: # existe_tiro = 0
 movimentar_inimigo:
 	jr $ra
 	
-desenhar_hud:
+desenhar_hud_linha:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	
@@ -356,8 +360,59 @@ desenhar_hud:
 		addi $a1, $a1, -1
 		bgez $a1, line_loop
 	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
 
+desenhar_hud_vidas:# desenha os 5 coracoes
+	addi $sp, $sp, -12
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
 
+	li $s0, 5 # 5 coracoes
+	li $s1, CORACAO_Y0 # y atual
+	desenhar_hud_coracao:
+		li $a0, CORACAO_X
+		move $a1, $s1
+		li $a2, ROSA
+		jal desenhar_coracao
+		addi $s0, $s0, -1
+		addi $s1, $s1, CORACAO_PASSO
+		bgtz $s0, desenhar_hud_coracao
+
+	desenhar_hud_vidas_end:
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 12
+	jr $ra
+
+perder_uma_vida:# vidas-- e apaga o coracao de baixo
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	# if vidas <= 0 return
+	lw $t0, vidas
+	blez $t0, perder_uma_vida_fim
+
+	#apagar coracao atual
+	li $a0, CORACAO_X
+	lw $a1, coracao_atual_y
+	li $a2, PRETO
+	jal desenhar_coracao
+
+	#vidas --
+	lw $t0, vidas
+	addi $t0, $t0, -1
+	sw $t0, vidas
+
+	#coracao_atual_y -= 5
+	lw $t0, coracao_atual_y
+	addi $t0, $t0, -CORACAO_PASSO
+	sw $t0, coracao_atual_y
+
+	perder_uma_vida_fim:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	jr $ra
@@ -937,6 +992,7 @@ desenhar_score:# (a0, a1) = (score, cor) -> desenha o score (0 a 20) com 2 digit
 	addi $sp, $sp, 12
 	jr $ra
 	
+
 limpar_tela:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
