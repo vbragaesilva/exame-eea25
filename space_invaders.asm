@@ -1348,6 +1348,10 @@ sleep1:
 	.eqv RICK_BAIXO_INSTR 38   # Synth Bass 1
 	# cada linha: nota da melodia (MIDI, 0 = pausa), nota do baixo (0 = nenhuma), duracao em unidades; duracao 0 = fim
 	rick_musica:
+	# introducao instrumental: "tatarantaa tatarantaa taa taa" (Lab Lab Sib Do-longo, 2x, depois Mib e Do longos)
+	.word 68,44,2, 68,0,2, 70,0,2, 72,41,4, 0,0,6
+	.word 68,44,2, 68,0,2, 70,0,2, 72,41,4, 0,0,6
+	.word 75,39,4, 72,41,4, 0,0,8
 	# "Never gonna give you up"  (Mib Fa Lab Fa | Do Do Sib)
 	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 72,41,3, 72,0,3, 70,39,6, 0,0,12
 	# "Never gonna let you down" (Mib Fa Lab Fa | Sib Sib Lab)
