@@ -21,8 +21,8 @@
 	.eqv INIMIGO_RESPAWN 500 # voltas morto ate renascer
 	.eqv TIRO_INIMIGO_INTERVALO 1000 # ms entre tiros do inimigo
 	.eqv TIRO_INIMIGO_SIZE_INCREMENT 15 # voltas por pixel do tiro do inimigo
-	.eqv CAVEIRA_X 21 # (64 - 7*3)/2
-	.eqv CAVEIRA_Y 4  # (32 - 8*3)/2
+	.eqv IMAGEM_X 21 # (64 - 7*3)/2
+	.eqv IMAGEM_Y 4  # (32 - 8*3)/2
 	.eqv SCORE_X 60 # x da unidade (dezena em x-4)
 	.eqv SCORE_Y 5  # y de baixo dos digitos
 	.eqv CORACAO_X 57 # x dos coracoes
@@ -50,6 +50,7 @@
 	tiro_inimigo_incremented_position: .word 0
 	ultimo_tiro_inimigo: .word 0 # ms do ultimo tiro do inimigo
 	caveira: .word 0x3E, 0x7F, 0x7F, 0x7F, 0x49, 0x49, 0x36, 0x1C
+	trofeu: .word 0x7F, 0x5D, 0x5D, 0x3E, 0x1C, 0x08, 0x1C, 0x3E
 	
 
 .text
@@ -311,9 +312,9 @@ incrementar_score:# score++ e redesenha o score
 	li $a1, BRANCO
 	jal desenhar_score
 
-	# if score >= 20 end_program
+	# if score >= 20 vitoria
 	lw $t0, score
-	bge $t0, 20, end_program
+	bge $t0, 20, vitoria
 
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
@@ -809,57 +810,70 @@ perder_uma_vida:# vidas-- e apaga o coracao de baixo
 	jr $ra
 
 game_over:# caveira e end_program
-	jal tela_game_over
+	jal limpar_tela
+	la $a0, caveira
+	li $a1, BRANCO
+	jal desenhar_imagem
 	j end_program
 
-tela_game_over:# limpa a tela e desenha a caveira 7x8 com blocos 3x3
-	addi $sp, $sp, -16
+vitoria:# trofeu e end_program
+	jal limpar_tela
+	la $a0, trofeu
+	li $a1, AMARELO
+	jal desenhar_imagem
+	j end_program
+
+desenhar_imagem:# (a0, a1) = (imagem,cor) -> desenha a imagem 7x8 com blocos 3x3 em (IMAGEM_X, IMAGEM_Y)
+	addi $sp, $sp, -20
 	sw $ra, 0($sp)
 	sw $s0, 4($sp)
 	sw $s1, 8($sp)
 	sw $s2, 12($sp)
+	sw $s3, 16($sp)
 
-	jal limpar_tela
+	move $s3, $a0 # imagem
+	move $a2, $a1 # cor
 
 	li $s0, 0 # linha
-	tela_game_over_linha:
+	desenhar_imagem_linha:
 		sll $t0, $s0, 2
-		lw $s1, caveira($t0) # bits da linha
+		add $t0, $t0, $s3
+		lw $s1, 0($t0) # bits da linha
 		li $s2, 0 # coluna
-		tela_game_over_coluna:
+		desenhar_imagem_coluna:
 			# if bit (6 - coluna) == 0 continue
 			li $t0, 6
 			sub $t0, $t0, $s2
 			srlv $t1, $s1, $t0
 			andi $t1, $t1, 1
-			beqz $t1, tela_game_over_proxima
+			beqz $t1, desenhar_imagem_proxima
 
-			# desenhar_bloco(CAVEIRA_X + 3*coluna, CAVEIRA_Y + 3*linha)
+			# desenhar_bloco(IMAGEM_X + 3*coluna, IMAGEM_Y + 3*linha, cor)
 			sll $t0, $s2, 1
 			add $t0, $t0, $s2
-			addi $a0, $t0, CAVEIRA_X
+			addi $a0, $t0, IMAGEM_X
 			sll $t0, $s0, 1
 			add $t0, $t0, $s0
-			addi $a1, $t0, CAVEIRA_Y
+			addi $a1, $t0, IMAGEM_Y
 			jal desenhar_bloco
 
-			tela_game_over_proxima:
+			desenhar_imagem_proxima:
 			addi $s2, $s2, 1
-			blt $s2, 7, tela_game_over_coluna
+			blt $s2, 7, desenhar_imagem_coluna
 		addi $s0, $s0, 1
-		blt $s0, 8, tela_game_over_linha
+		blt $s0, 8, desenhar_imagem_linha
 
+	lw $s3, 16($sp)
 	lw $s2, 12($sp)
 	lw $s1, 8($sp)
 	lw $s0, 4($sp)
 	lw $ra, 0($sp)
-	addi $sp, $sp, 16
+	addi $sp, $sp, 20
 	jr $ra
 
-desenhar_bloco:# (a0, a1) = (x,y) -> desenha um bloco branco 3x3 em (x,y)
+desenhar_bloco:# (a0, a1, a2) = (x,y,cor) -> desenha um bloco 3x3 em (x,y)
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
-	li $a2, BRANCO
 
 	#x y
 	jal desenhar_pixel
