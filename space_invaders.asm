@@ -1338,93 +1338,534 @@ sleep1:
 	jr $ra
 
 # ===== rick rolling =====
-# Feature independente: so precisa da funcao rick_rolling (e da tabela rick_musica logo abaixo).
-# Para mudar de lugar, basta mover a chamada "jal rick_rolling" para onde quiser.
-# Nao usa nada do resto do jogo; preserva $ra e os $s que usa.
-# Melodia aproximada de "Never Gonna Give You Up" (tom de Lab maior), escrita de memoria/ouvido.
+# Feature independente: tela de vitoria (nave voando para longe + fogos de artificio) tocando
+# "Never Gonna Give You Up". Para mover a feature, basta mover a chamada "jal rick_rolling".
+# Depende so de helpers genericos (limpar_tela, desenhar_pixel) e das words player_x/player_y
+# (so para a nave comecar onde o jogador estava). Tudo que comeca com rick_ pertence a feature.
+# O andamento (musica e animacao) e controlado pelo relogio do sistema (syscall 30): a musica
+# avanca 1 "passo" (semicolcheia) a cada RICK_UNIDADE_MS e a animacao 1 quadro a cada RICK_FRAME_MS.
+# Melodia aproximada, escrita de ouvido (tom de Lab maior); acordes: IV V iii vi (Db Eb Dom Fam).
 .data
-	.eqv RICK_UNIDADE_MS 133 # duracao de 1 unidade (semicolcheia) em ms: ~113 bpm
-	.eqv RICK_MELODIA_INSTR 80 # Lead 1 (square): timbre de chiptune, combina com Space Invaders
+	.eqv RICK_UNIDADE_MS 133 # 1 passo = semicolcheia (~113 bpm)
+	.eqv RICK_FRAME_MS 66    # 1 quadro da animacao
+	.eqv RICK_MELODIA_INSTR 85 # Lead 6 (voice): lead "vocal"
 	.eqv RICK_BAIXO_INSTR 38   # Synth Bass 1
-	# cada linha: nota da melodia (MIDI, 0 = pausa), nota do baixo (0 = nenhuma), duracao em unidades; duracao 0 = fim
+	.eqv RICK_PAD_INSTR 89     # Pad 2 (warm): acordes ao fundo
+	.eqv RICK_BUMBO_INSTR 116  # Taiko Drum: bumbo
+	.eqv RICK_CAIXA_INSTR 118  # Synth Drum: caixa
+	.eqv RICK_CHIMBAL_INSTR 115 # Woodblock: chimbal
+	.eqv RICK_BAIXO_MS 230
+	.eqv RICK_PAD_MS 1050
+	# melodia: nota (MIDI, 0 = pausa), duracao em passos; duracao 0 = fim. Cada bloco tem 32 passos (2 compassos)
 	rick_musica:
-	# introducao instrumental: "tatarantaa tatarantaa taa taa" (Lab Lab Sib Do-longo, 2x, depois Mib e Do longos)
-	.word 68,44,2, 68,0,2, 70,0,2, 72,41,4, 0,0,6
-	.word 68,44,2, 68,0,2, 70,0,2, 72,41,4, 0,0,6
-	.word 75,39,4, 72,41,4, 0,0,8
-	# "Never gonna give you up"  (Mib Fa Lab Fa | Do Do Sib)
-	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 72,41,3, 72,0,3, 70,39,6, 0,0,12
+	# introducao (64 passos): "tatarantaa tatarantaa taa taa" + pausa so com a batida
+	.word 68,2, 68,2, 70,2, 72,4, 0,6
+	.word 68,2, 68,2, 70,2, 72,4, 0,6
+	.word 75,4, 72,4, 0,8
+	.word 0,16
+	# "Never gonna give you up" (Mib Fa Lab Fa | Do Do Sib)
+	.word 63,2, 65,2, 68,2, 65,2, 72,3, 72,3, 70,6, 0,12
 	# "Never gonna let you down" (Mib Fa Lab Fa | Sib Sib Lab)
-	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 70,41,3, 70,0,3, 68,44,6, 0,0,12
-	# "Never gonna run around and desert you" (Mib Fa Lab Fa | Lab Sib Sol Fa Mib)
-	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 68,41,3, 70,0,2, 67,0,3, 65,39,3, 63,0,3, 0,0,10
-	# "Never gonna give you up" de novo, final mais longo
-	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 72,41,3, 72,0,3, 70,39,10, 0,0,0
+	.word 63,2, 65,2, 68,2, 65,2, 70,3, 70,3, 68,6, 0,12
+	# "Never gonna run around and desert you"
+	.word 63,2, 65,2, 68,2, 65,2, 68,3, 70,2, 67,3, 65,3, 63,3, 0,10
+	# "Never gonna give you up" de novo
+	.word 63,2, 65,2, 68,2, 65,2, 72,3, 72,3, 70,10, 0,8
+	.word 0,0
+	# acordes, 1 a cada 8 passos: baixo, e 3 notas do acorde
+	rick_acordes:
+	.word 37,61,65,68 # Db
+	.word 39,63,67,70 # Eb
+	.word 36,60,63,67 # Dom
+	.word 41,65,68,72 # Fam
+	# 8 direcoes (dx, dy) das faiscas dos fogos
+	rick_dirs: .word 1,0, -1,0, 0,1, 0,-1, 1,1, -1,-1, 1,-1, -1,1
+	# cores dos fogos: branco, vermelho, amarelo, rosa, ciano, verde
+	rick_cores: .word 0x00FFFFFF, 0x00FF0000, 0x00FFFF00, 0x00FF69B4, 0x0000FFFF, 0x0000FF00
+	# 3 fogos, 4 words cada: x, y da explosao, idade (negativa = esperando), cor
+	rick_fogos: .word 0,0,0,0, 0,0,0,0, 0,0,0,0
+	rick_nave_x: .word 0
+	rick_nave_y: .word 0
+	rick_frame: .word 0
 .text
 
-rick_rolling:# toca a musica inteira; o ritmo e controlado pelo relogio do sistema (syscall 30), sem acumular atraso
-	addi $sp, $sp, -16
+rick_rolling:# toca a musica inteira enquanto anima a vitoria
+	addi $sp, $sp, -32
 	sw $ra, 0($sp)
 	sw $s0, 4($sp)
 	sw $s1, 8($sp)
 	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	sw $s6, 28($sp)
 
-	la $s0, rick_musica # s0 = ponteiro para a proxima nota
+	jal limpar_tela
 
-	# s1 = instante (ms) em que a proxima nota deve comecar
+	# a nave comeca onde o jogador estava
+	lw $t0, player_x
+	sw $t0, rick_nave_x
+	lw $t0, player_y
+	sw $t0, rick_nave_y
+	sw $zero, rick_frame
+
+	# sorteia os 3 fogos; cada um espera um tempo diferente para comecar
+	la $s0, rick_fogos
+	li $s1, 3
+	li $s2, -10
+	rick_rolling_init_fogos:
+		move $a0, $s0
+		jal rick_fogo_renascer
+		sw $s2, 8($s0)
+		addi $s0, $s0, 16
+		addi $s2, $s2, -20
+		addi $s1, $s1, -1
+		bgtz $s1, rick_rolling_init_fogos
+
+	# desenha a nave
+	lw $a0, rick_nave_x
+	lw $a1, rick_nave_y
+	li $a2, AZUL
+	li $a3, AMARELO
+	jal rick_nave
+
+	la $s0, rick_musica # s0 = proxima nota da melodia
+	li $s3, 0           # s3 = numero do passo musical
+	li $s4, 0           # s4 = passos que faltam para a nota atual acabar
 	li $v0, 30
 	syscall
-	move $s1, $a0
+	move $s1, $a0       # s1 = instante do proximo passo musical (ms)
+	move $s2, $a0       # s2 = instante do proximo quadro da animacao (ms)
 
-	rick_rolling_nota:
-		lw $s2, 8($s0) # s2 = duracao em unidades
-		beqz $s2, rick_rolling_fim
+	rick_rolling_loop:
+		li $v0, 30
+		syscall
+		move $s6, $a0 # s6 = agora (ms)
 
-		# duracao em ms = unidades * RICK_UNIDADE_MS
-		li $t0, RICK_UNIDADE_MS
-		mul $s2, $s2, $t0
+		# if agora < s1: ainda nao e hora do proximo passo
+		subu $t0, $s6, $s1
+		bltz $t0, rick_rolling_anim
 
-		# melodia (se nota != 0): syscall 31 e assincrona, toca sozinha pela duracao informada
+		# --- melodia: se a nota atual acabou, toca a proxima ---
+		bnez $s4, rick_rolling_ritmo
+		lw $t0, 4($s0) # duracao em passos
+		beqz $t0, rick_rolling_fim
+		move $s4, $t0
+		li $t1, RICK_UNIDADE_MS
+		mul $a1, $t0, $t1
+		addi $a1, $a1, -15 # respiro entre notas iguais
 		lw $a0, 0($s0)
-		beqz $a0, rick_rolling_baixo
-		addi $a1, $s2, -15 # um respiro entre notas iguais
+		addi $s0, $s0, 8
+		beqz $a0, rick_rolling_ritmo # pausa
 		li $a2, RICK_MELODIA_INSTR
 		li $a3, 100
-		li $v0, 31
-		syscall
+		jal rick_tocar
 
+		rick_rolling_ritmo:
+		# s5 = acorde atual (muda a cada 8 passos, ciclo de 4 acordes)
+		srl $t1, $s3, 3
+		andi $t1, $t1, 3
+		sll $t1, $t1, 4
+		la $s5, rick_acordes
+		add $s5, $s5, $t1
+
+		# bumbo em toda batida (a cada 4 passos)
+		andi $t0, $s3, 3
+		bnez $t0, rick_rolling_caixa
+		li $a0, 36
+		li $a1, 120
+		li $a2, RICK_BUMBO_INSTR
+		li $a3, 110
+		jal rick_tocar
+		rick_rolling_caixa:
+		# caixa nos tempos 2 e 4
+		andi $t0, $s3, 7
+		bne $t0, 4, rick_rolling_chimbal
+		li $a0, 55
+		li $a1, 120
+		li $a2, RICK_CAIXA_INSTR
+		li $a3, 95
+		jal rick_tocar
+		rick_rolling_chimbal:
+		# chimbal na contratempo (passo 2 de cada batida)
+		andi $t0, $s3, 3
+		bne $t0, 2, rick_rolling_baixo
+		li $a0, 96
+		li $a1, 40
+		li $a2, RICK_CHIMBAL_INSTR
+		li $a3, 55
+		jal rick_tocar
 		rick_rolling_baixo:
-		lw $a0, 4($s0)
-		beqz $a0, rick_rolling_esperar
-		move $a1, $s2
+		# baixo em colcheias, subindo uma oitava no contratempo
+		andi $t0, $s3, 1
+		bnez $t0, rick_rolling_pad
+		lw $a0, 0($s5)
+		andi $t0, $s3, 3
+		bne $t0, 2, rick_rolling_baixo_tocar
+		addi $a0, $a0, 12
+		rick_rolling_baixo_tocar:
+		li $a1, RICK_BAIXO_MS
 		li $a2, RICK_BAIXO_INSTR
-		li $a3, 80
-		li $v0, 31
+		li $a3, 95
+		jal rick_tocar
+		rick_rolling_pad:
+		# acorde (3 notas) a cada 8 passos
+		andi $t0, $s3, 7
+		bnez $t0, rick_rolling_passo_fim
+		lw $a0, 4($s5)
+		li $a1, RICK_PAD_MS
+		li $a2, RICK_PAD_INSTR
+		li $a3, 45
+		jal rick_tocar
+		lw $a0, 8($s5)
+		li $a1, RICK_PAD_MS
+		li $a2, RICK_PAD_INSTR
+		li $a3, 45
+		jal rick_tocar
+		lw $a0, 12($s5)
+		li $a1, RICK_PAD_MS
+		li $a2, RICK_PAD_INSTR
+		li $a3, 45
+		jal rick_tocar
+
+		rick_rolling_passo_fim:
+		addi $s4, $s4, -1
+		addi $s3, $s3, 1
+		addiu $s1, $s1, RICK_UNIDADE_MS
+
+		rick_rolling_anim:
+		# if agora >= s2: desenha o proximo quadro da animacao
+		subu $t0, $s6, $s2
+		bltz $t0, rick_rolling_espera
+		jal rick_animar
+		addiu $s2, $s2, RICK_FRAME_MS
+
+		rick_rolling_espera:
+		li $v0, 32
+		li $a0, 1
 		syscall
-
-		rick_rolling_esperar:
-		# proximo_inicio += duracao; espera o relogio chegar la
-		addu $s1, $s1, $s2
-		rick_rolling_relogio:
-			li $v0, 30
-			syscall
-			subu $t0, $s1, $a0
-			bgtz $t0, rick_rolling_relogio
-
-		addi $s0, $s0, 12 # proxima linha da tabela (3 words)
-		j rick_rolling_nota
+		j rick_rolling_loop
 
 	rick_rolling_fim:
-	# deixa a ultima nota terminar de soar antes de encerrar o programa
+	# deixa a ultima nota terminar de soar
 	li $v0, 32
 	li $a0, 800
 	syscall
 
+	lw $s6, 28($sp)
+	lw $s5, 24($sp)
+	lw $s4, 20($sp)
+	lw $s3, 16($sp)
 	lw $s2, 12($sp)
 	lw $s1, 8($sp)
 	lw $s0, 4($sp)
 	lw $ra, 0($sp)
-	addi $sp, $sp, 16
+	addi $sp, $sp, 32
+	jr $ra
+
+rick_tocar:# (a0, a1, a2, a3) = (nota, duracao ms, instrumento, volume) -> toca sem travar (syscall 31)
+	li $v0, 31
+	syscall
+	jr $ra
+
+rick_pixel:# (a0, a1, a2) = (x, y, cor) -> desenha o pixel so se estiver dentro da tela
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	bltz $a0, rick_pixel_fim
+	bgt $a0, 63, rick_pixel_fim
+	bltz $a1, rick_pixel_fim
+	bgt $a1, 31, rick_pixel_fim
+	jal desenhar_pixel
+	rick_pixel_fim:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+rick_linha:# (a0, a1, a2, a3) = (x, y, cor, n) -> desenha n pixels na horizontal a partir de (x, y)
+	addi $sp, $sp, -20
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	move $s0, $a0
+	move $s1, $a1
+	move $s2, $a2
+	move $s3, $a3
+	rick_linha_loop:
+		move $a0, $s0
+		move $a1, $s1
+		move $a2, $s2
+		jal rick_pixel
+		addi $s0, $s0, 1
+		addi $s3, $s3, -1
+		bgtz $s3, rick_linha_loop
+	lw $s3, 16($sp)
+	lw $s2, 12($sp)
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 20
+	jr $ra
+
+rick_nave:# (a0, a1, a2, a3) = (x, y, cor da nave, cor da chama) -> nave igual a do jogador, com chama de 2 pixels embaixo
+	addi $sp, $sp, -20
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	move $s0, $a0
+	move $s1, $a1
+	move $s2, $a2
+	move $s3, $a3
+
+	# linha de cima: x-1 ate x+1 em y-1
+	addi $a0, $s0, -1
+	addi $a1, $s1, -1
+	move $a2, $s2
+	li $a3, 3
+	jal rick_linha
+	# linha de baixo: x-2 ate x+2 em y
+	addi $a0, $s0, -2
+	move $a1, $s1
+	move $a2, $s2
+	li $a3, 5
+	jal rick_linha
+	# chama: (x, y+1) e (x, y+2)
+	move $a0, $s0
+	addi $a1, $s1, 1
+	move $a2, $s3
+	li $a3, 1
+	jal rick_linha
+	move $a0, $s0
+	addi $a1, $s1, 2
+	move $a2, $s3
+	li $a3, 1
+	jal rick_linha
+
+	lw $s3, 16($sp)
+	lw $s2, 12($sp)
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 20
+	jr $ra
+
+rick_anel:# (a0, a1, a2, a3) = (x, y, cor, raio) -> 8 faiscas ao redor de (x, y)
+	addi $sp, $sp, -28
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	sw $s5, 24($sp)
+	move $s0, $a0
+	move $s1, $a1
+	move $s2, $a2
+	move $s3, $a3
+	la $s4, rick_dirs
+	li $s5, 8
+	rick_anel_loop:
+		lw $t0, 0($s4)
+		lw $t1, 4($s4)
+		mul $t0, $t0, $s3
+		mul $t1, $t1, $s3
+		add $a0, $s0, $t0
+		add $a1, $s1, $t1
+		move $a2, $s2
+		jal rick_pixel
+		addi $s4, $s4, 8
+		addi $s5, $s5, -1
+		bgtz $s5, rick_anel_loop
+	lw $s5, 24($sp)
+	lw $s4, 20($sp)
+	lw $s3, 16($sp)
+	lw $s2, 12($sp)
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 28
+	jr $ra
+
+rick_fogo_renascer:# (a0) = (ponteiro do fogo) -> sorteia x, y e cor e zera a idade
+	addi $sp, $sp, -8
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	move $s0, $a0
+
+	# x entre 8 e 55
+	li $a0, 0
+	li $a1, 48
+	li $v0, 42
+	syscall
+	addi $a0, $a0, 8
+	sw $a0, 0($s0)
+	# y da explosao entre 6 e 14
+	li $a0, 0
+	li $a1, 9
+	li $v0, 42
+	syscall
+	addi $a0, $a0, 6
+	sw $a0, 4($s0)
+	# cor sorteada da tabela
+	li $a0, 0
+	li $a1, 6
+	li $v0, 42
+	syscall
+	sll $a0, $a0, 2
+	lw $t0, rick_cores($a0)
+	sw $t0, 12($s0)
+	sw $zero, 8($s0)
+
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	jr $ra
+
+rick_fogo_desenhar:# (a0, a1) = (ponteiro do fogo, cor) -> idade 0 a 9: foguete subindo; 10 a 18: explosao crescendo
+	addi $sp, $sp, -24
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+	sw $s4, 20($sp)
+	lw $s0, 0($a0) # x
+	lw $s1, 4($a0) # y da explosao
+	lw $s2, 8($a0) # idade
+	move $s3, $a1  # cor
+	bltz $s2, rick_fogo_desenhar_fim
+	bge $s2, 10, rick_fogo_desenhar_explosao
+
+	# foguete: y = 31 - idade * (31 - y_explosao) / 9
+	li $t0, 31
+	sub $t1, $t0, $s1
+	mul $t1, $t1, $s2
+	li $t2, 9
+	div $t1, $t2
+	mflo $t1
+	sub $a1, $t0, $t1
+	move $a0, $s0
+	move $a2, $s3
+	jal rick_pixel
+	j rick_fogo_desenhar_fim
+
+	rick_fogo_desenhar_explosao:
+	addi $s4, $s2, -9 # raio = 1 a 9
+	move $a0, $s0
+	move $a1, $s1
+	move $a2, $s3
+	move $a3, $s4
+	jal rick_anel
+	blt $s4, 3, rick_fogo_desenhar_fim
+	# anel interno, para a explosao ficar mais cheia
+	move $a0, $s0
+	move $a1, $s1
+	move $a2, $s3
+	srl $a3, $s4, 1
+	jal rick_anel
+
+	rick_fogo_desenhar_fim:
+	lw $s4, 20($sp)
+	lw $s3, 16($sp)
+	lw $s2, 12($sp)
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 24
+	jr $ra
+
+rick_fogo_atualizar:# (a0) = (ponteiro do fogo) -> apaga, avanca 1 quadro e redesenha
+	addi $sp, $sp, -8
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	move $s0, $a0
+
+	lw $t0, 8($s0)
+	bgez $t0, rick_fogo_atualizar_ativo
+	# esperando: so avanca a idade
+	addi $t0, $t0, 1
+	sw $t0, 8($s0)
+	j rick_fogo_atualizar_fim
+
+	rick_fogo_atualizar_ativo:
+	li $a1, PRETO
+	jal rick_fogo_desenhar # apaga o quadro anterior (a0 ainda e o ponteiro)
+	lw $t0, 8($s0)
+	addi $t0, $t0, 1
+	sw $t0, 8($s0)
+	bgt $t0, 18, rick_fogo_atualizar_renascer
+	move $a0, $s0
+	lw $a1, 12($s0)
+	jal rick_fogo_desenhar
+	j rick_fogo_atualizar_fim
+
+	rick_fogo_atualizar_renascer:
+	move $a0, $s0
+	jal rick_fogo_renascer
+	li $t0, -6 # pequena pausa antes do proximo foguete
+	sw $t0, 8($s0)
+
+	rick_fogo_atualizar_fim:
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 8
+	jr $ra
+
+rick_animar:# 1 quadro: a nave sobe 1 pixel a cada 4 quadros (ate sumir) e os fogos avancam
+	addi $sp, $sp, -12
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+
+	lw $t0, rick_frame
+	addi $t0, $t0, 1
+	sw $t0, rick_frame
+
+	# apaga a nave (se ainda estiver na tela) e a move
+	lw $a1, rick_nave_y
+	ble $a1, -3, rick_animar_fogos
+	lw $a0, rick_nave_x
+	li $a2, PRETO
+	li $a3, PRETO
+	jal rick_nave
+	lw $t0, rick_frame
+	andi $t0, $t0, 3
+	bnez $t0, rick_animar_fogos
+	lw $t0, rick_nave_y
+	addi $t0, $t0, -1
+	sw $t0, rick_nave_y
+
+	rick_animar_fogos:
+	la $s0, rick_fogos
+	li $s1, 3
+	rick_animar_fogos_loop:
+		move $a0, $s0
+		jal rick_fogo_atualizar
+		addi $s0, $s0, 16
+		addi $s1, $s1, -1
+		bgtz $s1, rick_animar_fogos_loop
+
+	# redesenha a nave por cima dos fogos, com a chama piscando
+	lw $a1, rick_nave_y
+	ble $a1, -3, rick_animar_fim
+	lw $a0, rick_nave_x
+	li $a2, AZUL
+	li $a3, AMARELO
+	lw $t0, rick_frame
+	andi $t0, $t0, 1
+	beqz $t0, rick_animar_nave
+	li $a3, VERM
+	rick_animar_nave:
+	jal rick_nave
+
+	rick_animar_fim:
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 12
 	jr $ra
 
 end_program:
