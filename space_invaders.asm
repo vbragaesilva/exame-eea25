@@ -331,6 +331,15 @@ som_explosao: # toca o som de explosao quando o inimigo e atingido (syscall 31, 
 	syscall
 	jr $ra
 
+som_dano: # toca o som quando a nave e atingida (syscall 31, nao trava o jogo)
+	li $a0, 50   # nota (grave)
+	li $a1, 400  # duracao em ms
+	li $a2, 81   # instrumento: Saw Lead
+	li $a3, 127  # volume (0-127)
+	li $v0, 31
+	syscall
+	jr $ra
+
 desenhar_tiro:#(cor)
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
@@ -490,8 +499,19 @@ movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SI
 	sw $t0, tiro_inimigo_y
 
 	# if tiro_inimigo_y > 31 (saiu por baixo da tela): existe_tiro_inimigo = 0; return
-	ble $t0, 31, movimentar_tiro_inimigo_desenhar
+	ble $t0, 31, movimentar_tiro_inimigo_checar_nave
 	sw $zero, existe_tiro_inimigo
+	j movimentar_tiro_inimigo_fim
+
+	movimentar_tiro_inimigo_checar_nave:
+	# if acertou a nave: apaga o tiro, toca o som de dano, perde uma vida e redesenha a nave; return
+	jal tiro_inimigo_acertou_nave
+	beqz $v0, movimentar_tiro_inimigo_desenhar
+	sw $zero, existe_tiro_inimigo
+	jal som_dano
+	jal perder_uma_vida
+	li $a0, AZUL
+	jal desenhar_player
 	j movimentar_tiro_inimigo_fim
 
 	movimentar_tiro_inimigo_desenhar:
@@ -501,6 +521,35 @@ movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SI
 	movimentar_tiro_inimigo_fim:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
+	jr $ra
+
+tiro_inimigo_acertou_nave:# -> v0 = 1 se o tiro do inimigo esta dentro da nave, senao v0 = 0
+	# a nave tem 2 linhas: player_y (x-2 ate x+2) e player_y-1 (x-1 ate x+1)
+	li $v0, 0
+	lw $t0, tiro_inimigo_x
+	lw $t1, tiro_inimigo_y
+	lw $t2, player_x
+	lw $t3, player_y
+
+	# dx = |tiro_inimigo_x - player_x|
+	sub $t4, $t0, $t2
+	abs $t4, $t4
+
+	# if tiro_inimigo_y == player_y and dx <= 2: acertou
+	bne $t1, $t3, tiro_inimigo_acertou_nave_cima
+	ble $t4, 2, tiro_inimigo_acertou_nave_sim
+	j tiro_inimigo_acertou_nave_fim
+
+	# if tiro_inimigo_y == player_y-1 and dx <= 1: acertou
+	tiro_inimigo_acertou_nave_cima:
+	addi $t3, $t3, -1
+	bne $t1, $t3, tiro_inimigo_acertou_nave_fim
+	bgt $t4, 1, tiro_inimigo_acertou_nave_fim
+
+	tiro_inimigo_acertou_nave_sim:
+	li $v0, 1
+
+	tiro_inimigo_acertou_nave_fim:
 	jr $ra
 
 tiro_acertou_inimigo:# -> v0 = 1 se o tiro (tiro_x, tiro_y) esta dentro do inimigo vivo, senao v0 = 0
