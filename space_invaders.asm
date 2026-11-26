@@ -12,19 +12,19 @@
 	.eqv DISPLAY_LENGTH 8192
 	.eqv TIRO_Y0 26
 	.eqv SIZE_INCREMENT 20
-	.eqv INIMIGO_SIZE_INCREMENT 80 # valor inicial de inimigo_size_increment
-	.eqv INIMIGO_SIZE_INCREMENT_MIN 20 # mais rapido que o inimigo pode ficar
-	.eqv INIMIGO_ACELERACAO 3 # quanto inimigo_size_increment diminui a cada inimigo morto
+	.eqv INIMIGO_SIZE_INCREMENT 80 # velocidade inicial do inimigo
+	.eqv INIMIGO_SIZE_INCREMENT_MIN 20 # velocidade maxima do inimigo
+	.eqv INIMIGO_ACELERACAO 3 # inimigo_size_increment -= 3 a cada morte
 	.eqv PLAYER_MAX_X 51
-	.eqv INIMIGO_MIN_X 2  # o inimigo ocupa de x-2 ate x+2, entao x >= 2 (borda esquerda da tela)
-	.eqv INIMIGO_MAX_X 51 # e x <= 51 para nao passar de x=53 (antes da linha do HUD)
-	.eqv INIMIGO_RESPAWN 500 # voltas do loop que o inimigo fica morto antes de renascer (~1 s)
-	.eqv TIRO_INIMIGO_INTERVALO 1000 # ms entre os tiros do inimigo
-	.eqv TIRO_INIMIGO_SIZE_INCREMENT 15 # voltas do loop para o tiro do inimigo descer 1 pixel
-	.eqv CAVEIRA_X 21 # canto superior esquerdo da caveira: 7 colunas x 3 = 21 de largura, (64-21)/2 = 21
-	.eqv CAVEIRA_Y 4  # 8 linhas x 3 = 24 de altura, (32-24)/2 = 4
-	.eqv SCORE_X 60 # x do digito das unidades (a dezena fica 4 colunas a esquerda, em x=56)
-	.eqv SCORE_Y 5  # y da linha de baixo dos digitos (ocupam as linhas 1 a 5; linha 0 e 6 livres)
+	.eqv INIMIGO_MIN_X 2  # x-2 >= 0
+	.eqv INIMIGO_MAX_X 51 # x+2 <= 53 (antes do HUD)
+	.eqv INIMIGO_RESPAWN 500 # voltas morto ate renascer
+	.eqv TIRO_INIMIGO_INTERVALO 1000 # ms entre tiros do inimigo
+	.eqv TIRO_INIMIGO_SIZE_INCREMENT 15 # voltas por pixel do tiro do inimigo
+	.eqv CAVEIRA_X 21 # (64 - 7*3)/2
+	.eqv CAVEIRA_Y 4  # (32 - 8*3)/2
+	.eqv SCORE_X 60 # x da unidade (dezena em x-4)
+	.eqv SCORE_Y 5  # y de baixo dos digitos
 	.eqv CORACAO_X 57 # x dos coracoes
 	.eqv CORACAO_Y0 7 # y do primeiro coracao
 	.eqv CORACAO_PASSO 5 # altura 4 + 1 de espaco
@@ -41,14 +41,14 @@
 	inimigo_y: .word 6
 	inimigo_dir: .word 1
 	inimigo_incremented_position: .word 0
-	inimigo_size_increment: .word INIMIGO_SIZE_INCREMENT # voltas por passo do inimigo, diminui a cada morte
-	inimigo_vivo: .word 1 # 1 = vivo, 0 = morto (esperando renascer)
-	inimigo_timer: .word 0 # voltas desde que o inimigo morreu
+	inimigo_size_increment: .word INIMIGO_SIZE_INCREMENT # velocidade atual do inimigo
+	inimigo_vivo: .word 1 # 1 vivo, 0 morto
+	inimigo_timer: .word 0 # voltas desde que morreu
 	existe_tiro_inimigo: .word 0
 	tiro_inimigo_x: .word 0
 	tiro_inimigo_y: .word 0
 	tiro_inimigo_incremented_position: .word 0
-	ultimo_tiro_inimigo: .word 0 # tempo (ms, syscall 30) do ultimo tiro do inimigo
+	ultimo_tiro_inimigo: .word 0 # ms do ultimo tiro do inimigo
 	caveira: .word 0x3E, 0x7F, 0x7F, 0x7F, 0x49, 0x49, 0x36, 0x1C
 	
 
@@ -66,7 +66,7 @@ main:    #MAIN
 	li $a1, BRANCO
 	jal desenhar_score
 
-	# ultimo_tiro_inimigo = agora 
+	# ultimo_tiro_inimigo = agora
 	li $v0, 30
 	syscall
 	sw $a0, ultimo_tiro_inimigo
@@ -153,7 +153,7 @@ desenhar_player:# (a0) = (cor) -> desenha a nave na posicao (player_x, player_y)
 	addi, $sp, $sp, 4
 	jr $ra
 
-desenhar_coracao:# (a0, a1, a2) = (x,y,cor) -> desenha um coracao 5x4 com canto superior esquerdo em (x,y)
+desenhar_coracao:# (a0, a1, a2) = (x,y,cor) -> desenha um coracao 5x4 em (x,y)
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
@@ -322,13 +322,13 @@ incrementar_score:# score++ e redesenha o score
 som_tiro: # toca o som do disparo (syscall 31 = MIDI assincrono, nao trava o jogo)
 	li $a0, 84   # nota (tom agudo)
 	li $a1, 250  # duracao em ms
-	li $a2, 118  # instrumento: Synth Drum (tom que cai rapido = "piu")
+	li $a2, 118  # instrumento: Synth Drum
 	li $a3, 100  # volume (0-127)
 	li $v0, 31
 	syscall
 	jr $ra
 
-som_explosao: # toca o som de explosao quando o inimigo e atingido (syscall 31, nao trava o jogo)
+som_explosao: # toca o som da explosao do inimigo (syscall 31)
 	li $a0, 40   # nota (tom grave)
 	li $a1, 500  # duracao em ms
 	li $a2, 127  # instrumento: Gunshot
@@ -337,7 +337,7 @@ som_explosao: # toca o som de explosao quando o inimigo e atingido (syscall 31, 
 	syscall
 	jr $ra
 
-som_dano: # toca o som quando a nave e atingida (syscall 31, nao trava o jogo)
+som_dano: # toca o som da nave atingida (syscall 31)
 	li $a0, 50   # nota (grave)
 	li $a1, 400  # duracao em ms
 	li $a2, 81   # instrumento: Saw Lead
@@ -400,7 +400,7 @@ movimentar_tiro:
 	j movimentar_tiro_fim
 
 	movimentar_tiro_checar_inimigo:
-	# if acertou o inimigo: deletar_tiro, mata o inimigo, score++; return
+	# if acertou inimigo: deletar_tiro, matar_inimigo, score++; return
 	jal tiro_acertou_inimigo
 	beqz $v0, movimentar_tiro_desenhar
 	jal deletar_tiro
@@ -426,8 +426,8 @@ deletar_tiro: # existe_tiro = 0
 	sw $t0, existe_tiro
 	jr $ra
 
-inimigo_atirar:# a cada TIRO_INIMIGO_INTERVALO ms cria um tiro logo abaixo do inimigo (se ele estiver vivo e nao tiver outro tiro dele na tela)
-	# agora = tempo do sistema em ms (syscall 30: parte baixa em a0)
+inimigo_atirar:# cria um tiro abaixo do inimigo a cada TIRO_INIMIGO_INTERVALO ms
+	# agora = tempo em ms (syscall 30)
 	li $v0, 30
 	syscall
 
@@ -446,7 +446,7 @@ inimigo_atirar:# a cada TIRO_INIMIGO_INTERVALO ms cria um tiro logo abaixo do in
 	sw $a0, ultimo_tiro_inimigo
 
 	# existe_tiro_inimigo = 1
-	# (tiro_inimigo_x, tiro_inimigo_y) = (inimigo_x, inimigo_y + 2), logo abaixo do inimigo
+	# (tiro_inimigo_x, tiro_inimigo_y) = (inimigo_x, inimigo_y + 2)
 	li $t0, 1
 	sw $t0, existe_tiro_inimigo
 	lw $t0, inimigo_x
@@ -477,7 +477,7 @@ desenhar_tiro_inimigo:# (a0) = (cor) -> desenha o tiro do inimigo em (tiro_inimi
 	addi $sp, $sp, 4
 	jr $ra
 
-movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SIZE_INCREMENT voltas; some quando sai por baixo da tela
+movimentar_tiro_inimigo:# lógica de movimentação do tiro do inimigo, desce 1 pixel
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
@@ -495,7 +495,7 @@ movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SI
 	#tiro_inimigo_incremented_position = 0
 	sw $zero, tiro_inimigo_incremented_position
 
-	# if a nave andou pra cima do tiro: acertou (nao apaga, o pixel agora e da nave)
+	# if nave andou pra cima do tiro: acertou (nao apaga)
 	jal tiro_inimigo_acertou_nave
 	bnez $v0, movimentar_tiro_inimigo_acertou
 
@@ -508,13 +508,13 @@ movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SI
 	addi $t0, $t0, 1
 	sw $t0, tiro_inimigo_y
 
-	# if tiro_inimigo_y > 31 (saiu por baixo da tela): existe_tiro_inimigo = 0; return
+	# if tiro_inimigo_y > 31: existe_tiro_inimigo = 0; return
 	ble $t0, 31, movimentar_tiro_inimigo_checar_nave
 	sw $zero, existe_tiro_inimigo
 	j movimentar_tiro_inimigo_fim
 
 	movimentar_tiro_inimigo_checar_nave:
-	# if acertou a nave: apaga o tiro, toca o som de dano, perde uma vida e redesenha a nave; return
+	# if acertou nave: som_dano, perder_uma_vida, redesenha nave; return
 	jal tiro_inimigo_acertou_nave
 	beqz $v0, movimentar_tiro_inimigo_desenhar
 	movimentar_tiro_inimigo_acertou:
@@ -534,8 +534,8 @@ movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SI
 	addi $sp, $sp, 4
 	jr $ra
 
-tiro_inimigo_acertou_nave:# -> v0 = 1 se o tiro do inimigo esta dentro da nave, senao v0 = 0
-	# a nave tem 2 linhas: player_y (x-2 ate x+2) e player_y-1 (x-1 ate x+1)
+tiro_inimigo_acertou_nave:# -> (v0) = 1 se o tiro do inimigo acertou a nave, senao 0
+	# nave: linha y (x-2 ate x+2), linha y-1 (x-1 ate x+1)
 	li $v0, 0
 	lw $t0, tiro_inimigo_x
 	lw $t1, tiro_inimigo_y
@@ -546,12 +546,12 @@ tiro_inimigo_acertou_nave:# -> v0 = 1 se o tiro do inimigo esta dentro da nave, 
 	sub $t4, $t0, $t2
 	abs $t4, $t4
 
-	# if tiro_inimigo_y == player_y and dx <= 2: acertou
+	# if tiro_inimigo_y == player_y and dx <= 2 return 1
 	bne $t1, $t3, tiro_inimigo_acertou_nave_cima
 	ble $t4, 2, tiro_inimigo_acertou_nave_sim
 	j tiro_inimigo_acertou_nave_fim
 
-	# if tiro_inimigo_y == player_y-1 and dx <= 1: acertou
+	# if tiro_inimigo_y == player_y-1 and dx <= 1 return 1
 	tiro_inimigo_acertou_nave_cima:
 	addi $t3, $t3, -1
 	bne $t1, $t3, tiro_inimigo_acertou_nave_fim
@@ -563,7 +563,7 @@ tiro_inimigo_acertou_nave:# -> v0 = 1 se o tiro do inimigo esta dentro da nave, 
 	tiro_inimigo_acertou_nave_fim:
 	jr $ra
 
-tiro_acertou_inimigo:# -> v0 = 1 se o tiro (tiro_x, tiro_y) esta dentro do inimigo vivo, senao v0 = 0
+tiro_acertou_inimigo:# -> (v0) = 1 se o tiro acertou o inimigo, senao 0
 	li $v0, 0
 
 	# if not inimigo_vivo return 0
@@ -585,13 +585,13 @@ tiro_acertou_inimigo:# -> v0 = 1 se o tiro (tiro_x, tiro_y) esta dentro do inimi
 	addi $t2, $t1, 2
 	bgt $t0, $t2, tiro_acertou_inimigo_fim
 
-	# acertou
+	# return 1
 	li $v0, 1
 
 	tiro_acertou_inimigo_fim:
 	jr $ra
 
-matar_inimigo:# apaga o inimigo, toca o som de explosao e marca como morto (renasce depois de INIMIGO_RESPAWN voltas)
+matar_inimigo:# apaga o inimigo, som_explosao, inimigo_vivo = 0
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
@@ -611,7 +611,7 @@ matar_inimigo:# apaga o inimigo, toca o som de explosao e marca como morto (rena
 	addi $sp, $sp, 4
 	jr $ra
 
-aumentar_dificuldade:# inimigo_size_increment -= INIMIGO_ACELERACAO (o inimigo fica mais rapido), sem passar de INIMIGO_SIZE_INCREMENT_MIN
+aumentar_dificuldade:# deixa o inimigo mais rapido
 	#inimigo_size_increment -= INIMIGO_ACELERACAO
 	lw $t0, inimigo_size_increment
 	addi $t0, $t0, -INIMIGO_ACELERACAO
@@ -624,19 +624,19 @@ aumentar_dificuldade:# inimigo_size_increment -= INIMIGO_ACELERACAO (o inimigo f
 	sw $t0, inimigo_size_increment
 	jr $ra
 
-renascer_inimigo:# o inimigo volta num x aleatorio entre INIMIGO_MIN_X e INIMIGO_MAX_X, andando para a direita
+renascer_inimigo:# inimigo volta num x aleatorio, andando pra direita
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
-	# x aleatorio: syscall 42 sorteia 0 <= a0 < a1
-	li $a0, 0  # id do gerador de numeros aleatorios
-	li $a1, 50 # INIMIGO_MAX_X - INIMIGO_MIN_X + 1 = 51 - 2 + 1 = 50 posicoes
+	# x aleatorio (syscall 42: 0 <= a0 < a1)
+	li $a0, 0  # id do gerador
+	li $a1, 50 # 51 - 2 + 1 posicoes
 	li $v0, 42
 	syscall
 	addi $a0, $a0, INIMIGO_MIN_X
 	sw $a0, inimigo_x
 
-	#inimigo_dir = 1 (direita), inimigo_vivo = 1, zera o contador de movimento
+	#inimigo_dir = 1, inimigo_vivo = 1, inimigo_incremented_position = 0
 	li $t0, 1
 	sw $t0, inimigo_dir
 	sw $t0, inimigo_vivo
@@ -651,7 +651,7 @@ renascer_inimigo:# o inimigo volta num x aleatorio entre INIMIGO_MIN_X e INIMIGO
 	jr $ra
 	
 	
-desenhar_inimigo:# (a0) = (cor) -> desenha o inimigo: retangulo 5x2, colunas inimigo_x-2 ate inimigo_x+2, linhas inimigo_y e inimigo_y+1
+desenhar_inimigo:# (a0) = (cor) -> desenha o inimigo 5x2 na posicao (inimigo_x, inimigo_y)
 	addi $sp, $sp, -12
 	sw $ra, 0($sp)
 	sw $s0, 4($sp)
@@ -659,17 +659,17 @@ desenhar_inimigo:# (a0) = (cor) -> desenha o inimigo: retangulo 5x2, colunas ini
 
 	move $a2, $a0
 	lw $a1, inimigo_y
-	li $s1, 2 # s1 = linhas que faltam
+	li $s1, 2 # linhas
 	desenhar_inimigo_linha:
 		lw $a0, inimigo_x
-		addi $a0, $a0, -2 # comeca na coluna x-2
-		li $s0, 5 # s0 = colunas que faltam
+		addi $a0, $a0, -2 # x-2
+		li $s0, 5 # colunas
 		desenhar_inimigo_coluna:
 			jal desenhar_pixel
 			addi $a0, $a0, 1
 			addi $s0, $s0, -1
 			bgtz $s0, desenhar_inimigo_coluna
-		addi $a1, $a1, 1 # proxima linha
+		addi $a1, $a1, 1 # y+1
 		addi $s1, $s1, -1
 		bgtz $s1, desenhar_inimigo_linha
 
@@ -679,11 +679,11 @@ desenhar_inimigo:# (a0) = (cor) -> desenha o inimigo: retangulo 5x2, colunas ini
 	addi $sp, $sp, 12
 	jr $ra
 
-movimentar_inimigo:# anda 1 pixel na direcao inimigo_dir a cada inimigo_size_increment voltas; inverte a direcao nas bordas
+movimentar_inimigo:# lógica de movimentação do inimigo, inverte nas bordas
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
-	# if inimigo morto: inimigo_timer++ e renasce quando chegar em INIMIGO_RESPAWN
+	# if not inimigo_vivo: inimigo_timer++; if inimigo_timer >= INIMIGO_RESPAWN renascer_inimigo
 	lw $t0, inimigo_vivo
 	bnez $t0, movimentar_inimigo_vivo
 	lw $t0, inimigo_timer
@@ -714,7 +714,7 @@ movimentar_inimigo:# anda 1 pixel na direcao inimigo_dir a cada inimigo_size_inc
 	lw $t1, inimigo_dir
 	add $t2, $t0, $t1
 
-	# if proximo_x saiu dos limites: inimigo_dir = -inimigo_dir e recalcula
+	# if proximo_x fora dos limites: inimigo_dir = -inimigo_dir
 	bgt $t2, INIMIGO_MAX_X, movimentar_inimigo_inverter
 	blt $t2, INIMIGO_MIN_X, movimentar_inimigo_inverter
 	j movimentar_inimigo_andar
@@ -808,11 +808,11 @@ perder_uma_vida:# vidas-- e apaga o coracao de baixo
 	addi $sp, $sp, 4
 	jr $ra
 
-game_over:# mostra a caveira e termina o programa (chamada com j, nao volta)
+game_over:# caveira e end_program
 	jal tela_game_over
 	j end_program
 
-tela_game_over:# limpa a tela e desenha a caveira 7x8 aumentada 3x (cada pixel vira um bloco 3x3) no meio da tela
+tela_game_over:# limpa a tela e desenha a caveira 7x8 com blocos 3x3
 	addi $sp, $sp, -16
 	sw $ra, 0($sp)
 	sw $s0, 4($sp)
@@ -821,20 +821,20 @@ tela_game_over:# limpa a tela e desenha a caveira 7x8 aumentada 3x (cada pixel v
 
 	jal limpar_tela
 
-	li $s0, 0 # s0 = linha da caveira (0 a 7)
+	li $s0, 0 # linha
 	tela_game_over_linha:
 		sll $t0, $s0, 2
-		lw $s1, caveira($t0) # s1 = bits da linha
-		li $s2, 0 # s2 = coluna da caveira (0 a 6)
+		lw $s1, caveira($t0) # bits da linha
+		li $s2, 0 # coluna
 		tela_game_over_coluna:
-			# if bit (6 - coluna) == 0: nao pinta
+			# if bit (6 - coluna) == 0 continue
 			li $t0, 6
 			sub $t0, $t0, $s2
 			srlv $t1, $s1, $t0
 			andi $t1, $t1, 1
 			beqz $t1, tela_game_over_proxima
 
-			# bloco em (CAVEIRA_X + 3*coluna, CAVEIRA_Y + 3*linha)
+			# desenhar_bloco(CAVEIRA_X + 3*coluna, CAVEIRA_Y + 3*linha)
 			sll $t0, $s2, 1
 			add $t0, $t0, $s2
 			addi $a0, $t0, CAVEIRA_X
@@ -856,7 +856,7 @@ tela_game_over:# limpa a tela e desenha a caveira 7x8 aumentada 3x (cada pixel v
 	addi $sp, $sp, 16
 	jr $ra
 
-desenhar_bloco:# (a0, a1) = (x,y) -> pinta de branco um bloco 3x3 com canto superior esquerdo em (x,y)
+desenhar_bloco:# (a0, a1) = (x,y) -> desenha um bloco branco 3x3 em (x,y)
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	li $a2, BRANCO
@@ -896,8 +896,7 @@ desenhar_bloco:# (a0, a1) = (x,y) -> pinta de branco um bloco 3x3 com canto supe
 	
 	
 # ===== numeros do placar =====
-# cada numero ocupa uma caixa 3x5; (x, y) e o canto INFERIOR esquerdo da caixa
-# (o y da tela cresce para baixo, entao subir 1 pixel = y-1)
+# numeros 3x5, (x,y) = canto inferior esquerdo
 
 desenhar_numero_0:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 0 com o canto inferior esquerdo em (x, y)
 	addi $sp, $sp, -4
@@ -1384,11 +1383,11 @@ desenhar_numero_9:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 9 com o canto
 	jr $ra
 	
 
-desenhar_digito:# (a0, a1, a2, a3) = (x, y, cor, digito) -> desenha o digito (0 a 9) com o canto inferior esquerdo em (x, y)
+desenhar_digito:# (a0, a1, a2, a3) = (x,y,cor,digito) -> desenha o digito em (x,y)
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	
-	# switch (digito): chama a desenhar_numero certa
+	# switch digito
 	beq $a3, 0, desenhar_digito_0
 	beq $a3, 1, desenhar_digito_1
 	beq $a3, 2, desenhar_digito_2
@@ -1399,7 +1398,7 @@ desenhar_digito:# (a0, a1, a2, a3) = (x, y, cor, digito) -> desenha o digito (0 
 	beq $a3, 7, desenhar_digito_7
 	beq $a3, 8, desenhar_digito_8
 	beq $a3, 9, desenhar_digito_9
-	j desenhar_digito_fim # digito invalido: nao desenha nada
+	j desenhar_digito_fim # default
 	desenhar_digito_0:
 		jal desenhar_numero_0
 		j desenhar_digito_fim
@@ -1435,27 +1434,27 @@ desenhar_digito:# (a0, a1, a2, a3) = (x, y, cor, digito) -> desenha o digito (0 
 	addi $sp, $sp, 4
 	jr $ra
 	
-desenhar_score:# (a0, a1) = (score, cor) -> desenha o score (0 a 20) com 2 digitos: unidade em SCORE_X, dezena a esquerda
+desenhar_score:# (a0, a1) = (score,cor) -> desenha o score com 2 digitos
 	addi $sp, $sp, -12
 	sw $ra, 0($sp)
 	sw $s0, 4($sp)
 	sw $s1, 8($sp)
 	
-	move $s1, $a1 # s1 = cor
+	move $s1, $a1 # cor
 	
-	# score / 10: lo = quociente = dezena, hi = resto (mod 10) = unidade
+	# score / 10: lo = dezena, hi = unidade
 	li $t0, 10
 	div $a0, $t0
-	mflo $s0 # s0 = dezena (guardada para a segunda chamada)
-	mfhi $a3 # a3 = unidade
+	mflo $s0 # dezena
+	mfhi $a3 # unidade
 	
-	# desenha a unidade em (SCORE_X, SCORE_Y)
+	#desenhar unidade
 	li $a0, SCORE_X
 	li $a1, SCORE_Y
 	move $a2, $s1
 	jal desenhar_digito
 	
-	# desenha a dezena a esquerda da unidade (3 pixels do digito + 1 de espaco = 4 colunas)
+	#desenhar dezena
 	li $a0, SCORE_X
 	addi $a0, $a0, -4
 	li $a1, SCORE_Y
