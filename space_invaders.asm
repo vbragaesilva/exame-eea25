@@ -12,7 +12,9 @@
 	.eqv DISPLAY_LENGTH 8192
 	.eqv TIRO_Y0 26
 	.eqv SIZE_INCREMENT 20
-	.eqv INIMIGO_SIZE_INCREMENT 80
+	.eqv INIMIGO_SIZE_INCREMENT 80 # valor inicial de inimigo_size_increment
+	.eqv INIMIGO_SIZE_INCREMENT_MIN 20 # mais rapido que o inimigo pode ficar
+	.eqv INIMIGO_ACELERACAO 3 # quanto inimigo_size_increment diminui a cada inimigo morto
 	.eqv PLAYER_MAX_X 51
 	.eqv INIMIGO_MIN_X 2  # o inimigo ocupa de x-2 ate x+2, entao x >= 2 (borda esquerda da tela)
 	.eqv INIMIGO_MAX_X 51 # e x <= 51 para nao passar de x=53 (antes da linha do HUD)
@@ -37,6 +39,7 @@
 	inimigo_y: .word 6
 	inimigo_dir: .word 1
 	inimigo_incremented_position: .word 0
+	inimigo_size_increment: .word INIMIGO_SIZE_INCREMENT # voltas por passo do inimigo, diminui a cada morte
 	inimigo_vivo: .word 1 # 1 = vivo, 0 = morto (esperando renascer)
 	inimigo_timer: .word 0 # voltas desde que o inimigo morreu
 	existe_tiro_inimigo: .word 0
@@ -545,8 +548,23 @@ matar_inimigo:# apaga o inimigo, toca o som de explosao e marca como morto (rena
 	sw $zero, inimigo_vivo
 	sw $zero, inimigo_timer
 
+	jal aumentar_dificuldade
+
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
+	jr $ra
+
+aumentar_dificuldade:# inimigo_size_increment -= INIMIGO_ACELERACAO (o inimigo fica mais rapido), sem passar de INIMIGO_SIZE_INCREMENT_MIN
+	#inimigo_size_increment -= INIMIGO_ACELERACAO
+	lw $t0, inimigo_size_increment
+	addi $t0, $t0, -INIMIGO_ACELERACAO
+
+	# if inimigo_size_increment < INIMIGO_SIZE_INCREMENT_MIN: inimigo_size_increment = INIMIGO_SIZE_INCREMENT_MIN
+	bge $t0, INIMIGO_SIZE_INCREMENT_MIN, aumentar_dificuldade_fim
+	li $t0, INIMIGO_SIZE_INCREMENT_MIN
+
+	aumentar_dificuldade_fim:
+	sw $t0, inimigo_size_increment
 	jr $ra
 
 renascer_inimigo:# o inimigo volta num x aleatorio entre INIMIGO_MIN_X e INIMIGO_MAX_X, andando para a direita
@@ -604,7 +622,7 @@ desenhar_inimigo:# (a0) = (cor) -> desenha o inimigo: retangulo 5x2, colunas ini
 	addi $sp, $sp, 12
 	jr $ra
 
-movimentar_inimigo:# anda 1 pixel na direcao inimigo_dir a cada INIMIGO_SIZE_INCREMENT voltas; inverte a direcao nas bordas
+movimentar_inimigo:# anda 1 pixel na direcao inimigo_dir a cada inimigo_size_increment voltas; inverte a direcao nas bordas
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
@@ -620,11 +638,12 @@ movimentar_inimigo:# anda 1 pixel na direcao inimigo_dir a cada INIMIGO_SIZE_INC
 
 	movimentar_inimigo_vivo:
 	#inimigo_incremented_position++
-	#if inimigo_incremented_position < INIMIGO_SIZE_INCREMENT return
+	#if inimigo_incremented_position < inimigo_size_increment return
 	lw $t0, inimigo_incremented_position
 	addi $t0, $t0, 1
 	sw $t0, inimigo_incremented_position
-	blt $t0, INIMIGO_SIZE_INCREMENT, movimentar_inimigo_fim
+	lw $t1, inimigo_size_increment
+	blt $t0, $t1, movimentar_inimigo_fim
 
 	#inimigo_incremented_position = 0
 	sw $zero, inimigo_incremented_position
