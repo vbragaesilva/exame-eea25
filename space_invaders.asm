@@ -3,6 +3,7 @@
 	.eqv AZUL 0x000000FF
 	.eqv VERM 0x00FF0000
 	.eqv PRETO 0x00000000
+	.eqv HUD_COLOR 0x00FFFFFF
 	.eqv display 0x10008000
 	.eqv key_pressed 0xFFFF0000
 	.eqv key_code 0xFFFF0004
@@ -10,6 +11,7 @@
 	.eqv TIRO_Y0 26
 	.eqv SIZE_INCREMENT 20
 	.eqv INIMIGO_SIZE_INCREMENT 80
+	.eqv PLAYER_MAX_X 51
 	player_x: .word 32
 	player_y: .word 28
 	vidas: .word 5
@@ -37,6 +39,8 @@ main:    #MAIN
 		# TODO desenhar score
 		
 		# TODO desenhar vidas
+		
+		jal desenhar_hud
 	
 		jal movimentar_tiro
 		
@@ -145,7 +149,7 @@ movimentar_player:# lógica de movimentação do player, só redesenha caso tenh
 	movimentar_player_direita:
 		lw $s0, player_x
 		# if player_x >= 61 return
-		bge $s0, 61, movimentar_player_fim
+		bge $s0, PLAYER_MAX_X, movimentar_player_fim
 		
 		#apagar player atual
 		li $a0, PRETO
@@ -276,6 +280,25 @@ deletar_tiro: # existe_tiro = 0
 	
 	
 movimentar_inimigo:
+	jr $ra
+	
+desenhar_hud:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	
+	li $a0, 54
+	li $a1, 31
+	li $a2, HUD_COLOR
+	line_loop:
+		jal desenhar_pixel
+		addi $a1, $a1, -1
+		bgez $a1, line_loop
+	
+
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
 	jr $ra
 	
 	
