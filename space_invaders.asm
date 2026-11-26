@@ -3,6 +3,7 @@
 	.eqv AZUL 0x000000FF
 	.eqv VERM 0x00FF0000
 	.eqv PRETO 0x00000000
+	.eqv ROSA 0x00FF69B4
 	.eqv HUD_COLOR 0x00FFFFFF
 	.eqv display 0x10008000
 	.eqv key_pressed 0xFFFF0000
@@ -116,7 +117,65 @@ desenhar_player:# (a0) = (cor) -> desenha a nave na posicao (player_x, player_y)
 	lw $ra, 0($sp)
 	addi, $sp, $sp, 4
 	jr $ra
-	
+
+desenhar_coracao:# (a0, a1, a2) = (x, y, cor) -> desenha um coracao 5x4 com canto superior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	#linha 0: colunas 1 e 3
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	#x+3 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+
+	#linha 1: colunas 0 a 4
+	#x+3 y+1
+	addi $a1, $a1, 1
+	jal desenhar_pixel
+
+	#x+4 y+1
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	#x+2 y+1
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+
+	#x+1 y+1
+	addi $a0, $a0, -1
+	jal desenhar_pixel
+
+	#x y+1
+	addi $a0, $a0, -1
+	jal desenhar_pixel
+
+	#linha 2: colunas 1 a 3
+	#x+1 y+2
+	addi $a1, $a1, 1
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	#x+2 y+2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	#x+3 y+2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	#linha 3: coluna 2
+	#x+2 y+3
+	addi $a1, $a1, 1
+	addi $a0, $a0, -1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi, $sp, $sp, 4
+	jr $ra
+
 movimentar_player:# lógica de movimentação do player, só redesenha caso tenha mudado a posição
 	addi $sp, $sp, -8
 	sw $ra, 0($sp)
