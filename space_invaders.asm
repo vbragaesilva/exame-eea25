@@ -361,6 +361,495 @@ desenhar_hud:
 	jr $ra
 	
 	
+# ===== numeros do placar =====
+# cada numero ocupa uma caixa 3x5; (x, y) e o canto INFERIOR esquerdo da caixa
+# (o y da tela cresce para baixo, entao subir 1 pixel = y-1)
+
+desenhar_numero_0:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 0 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-1
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_1:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 1 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x+2 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_2:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 2 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x y-1
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_3:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 3 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, -1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_4:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 4 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x+2 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_5:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 5 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_6:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 6 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-1
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_7:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 7 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x+2 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_8:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 8 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-1
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_9:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 9 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x+2 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+
 limpar_tela:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
