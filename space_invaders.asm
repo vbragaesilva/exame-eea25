@@ -21,6 +21,8 @@
 	.eqv INIMIGO_RESPAWN 500 # voltas do loop que o inimigo fica morto antes de renascer (~1 s)
 	.eqv TIRO_INIMIGO_INTERVALO 1000 # ms entre os tiros do inimigo
 	.eqv TIRO_INIMIGO_SIZE_INCREMENT 15 # voltas do loop para o tiro do inimigo descer 1 pixel
+	.eqv CAVEIRA_X 21 # canto superior esquerdo da caveira: 7 colunas x 3 = 21 de largura, (64-21)/2 = 21
+	.eqv CAVEIRA_Y 4  # 8 linhas x 3 = 24 de altura, (32-24)/2 = 4
 	.eqv SCORE_X 60 # x do digito das unidades (a dezena fica 4 colunas a esquerda, em x=56)
 	.eqv SCORE_Y 5  # y da linha de baixo dos digitos (ocupam as linhas 1 a 5; linha 0 e 6 livres)
 	.eqv CORACAO_X 57 # x dos coracoes
@@ -47,6 +49,16 @@
 	tiro_inimigo_y: .word 0
 	tiro_inimigo_incremented_position: .word 0
 	ultimo_tiro_inimigo: .word 0 # tempo (ms, syscall 30) do ultimo tiro do inimigo
+	# caveira da tela de derrota: 8 linhas de 7 colunas, bit 6 = coluna da esquerda
+	caveira: .word 0x3E, 0x7F, 0x7F, 0x7F, 0x49, 0x49, 0x36, 0x1C
+	#  . X X X X X .   0x3E
+	#  X X X X X X X   0x7F
+	#  X X X X X X X   0x7F
+	#  X X X X X X X   0x7F
+	#  X . . X . . X   0x49
+	#  X . . X . . X   0x49
+	#  . X X . X X .   0x36
+	#  . . X X X . .   0x1C
 	
 
 .text
@@ -796,11 +808,97 @@ perder_uma_vida:# vidas-- e apaga o coracao de baixo
 	addi $t0, $t0, -CORACAO_PASSO
 	sw $t0, coracao_atual_y
 
-	# if vidas == 0 end_program
+	# if vidas == 0 game_over
 	lw $t0, vidas
-	beqz $t0, end_program
+	beqz $t0, game_over
 
 	perder_uma_vida_fim:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+game_over:# mostra a caveira e termina o programa (chamada com j, nao volta)
+	jal tela_game_over
+	j end_program
+
+tela_game_over:# limpa a tela e desenha a caveira 7x8 aumentada 3x (cada pixel vira um bloco 3x3) no meio da tela
+	addi $sp, $sp, -16
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+
+	jal limpar_tela
+
+	li $s0, 0 # s0 = linha da caveira (0 a 7)
+	tela_game_over_linha:
+		sll $t0, $s0, 2
+		lw $s1, caveira($t0) # s1 = bits da linha
+		li $s2, 0 # s2 = coluna da caveira (0 a 6)
+		tela_game_over_coluna:
+			# if bit (6 - coluna) == 0: nao pinta
+			li $t0, 6
+			sub $t0, $t0, $s2
+			srlv $t1, $s1, $t0
+			andi $t1, $t1, 1
+			beqz $t1, tela_game_over_proxima
+
+			# bloco em (CAVEIRA_X + 3*coluna, CAVEIRA_Y + 3*linha)
+			sll $t0, $s2, 1
+			add $t0, $t0, $s2
+			addi $a0, $t0, CAVEIRA_X
+			sll $t0, $s0, 1
+			add $t0, $t0, $s0
+			addi $a1, $t0, CAVEIRA_Y
+			jal desenhar_bloco
+
+			tela_game_over_proxima:
+			addi $s2, $s2, 1
+			blt $s2, 7, tela_game_over_coluna
+		addi $s0, $s0, 1
+		blt $s0, 8, tela_game_over_linha
+
+	lw $s2, 12($sp)
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 16
+	jr $ra
+
+desenhar_bloco:# (a0, a1) = (x,y) -> pinta de branco um bloco 3x3 com canto superior esquerdo em (x,y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	li $a2, BRANCO
+
+	#x y
+	jal desenhar_pixel
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	#x+2 y+1
+	addi $a1, $a1, 1
+	jal desenhar_pixel
+	#x+1 y+1
+	addi $a0, $a0, -1
+	jal desenhar_pixel
+	#x y+1
+	addi $a0, $a0, -1
+	jal desenhar_pixel
+
+	#x y+2
+	addi $a1, $a1, 1
+	jal desenhar_pixel
+	#x+1 y+2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	#x+2 y+2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	jr $ra
