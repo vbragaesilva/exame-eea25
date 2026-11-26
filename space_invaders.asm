@@ -13,6 +13,8 @@
 	.eqv SIZE_INCREMENT 20
 	.eqv INIMIGO_SIZE_INCREMENT 80
 	.eqv PLAYER_MAX_X 51
+	.eqv INIMIGO_MIN_X 2  # o inimigo ocupa de x-2 ate x+2, entao x >= 2 (borda esquerda da tela)
+	.eqv INIMIGO_MAX_X 51 # e x <= 51 para nao passar de x=53 (antes da linha do HUD)
 	.eqv SCORE_X 60 # x do digito das unidades (a dezena fica 4 colunas a esquerda, em x=56)
 	.eqv SCORE_Y 5  # y da linha de baixo dos digitos (ocupam as linhas 1 a 5; linha 0 e 6 livres)
 	.eqv CORACAO_X 57 # x dos coracoes
@@ -39,6 +41,8 @@ main:    #MAIN
 	jal limpar_tela
 	li $a0, AZUL
 	jal desenhar_player
+	li $a0, VERM
+	jal desenhar_inimigo
 	jal desenhar_hud_linha
 	jal desenhar_hud_vidas
 	main_loop:
@@ -344,7 +348,75 @@ deletar_tiro: # existe_tiro = 0
 	jr $ra
 	
 	
-movimentar_inimigo:
+desenhar_inimigo:# (a0) = (cor) -> desenha o inimigo: retangulo 5x2, colunas inimigo_x-2 ate inimigo_x+2, linhas inimigo_y e inimigo_y+1
+	addi $sp, $sp, -12
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+
+	move $a2, $a0
+	lw $a1, inimigo_y
+	li $s1, 2 # s1 = linhas que faltam
+	desenhar_inimigo_linha:
+		lw $a0, inimigo_x
+		addi $a0, $a0, -2 # comeca na coluna x-2
+		li $s0, 5 # s0 = colunas que faltam
+		desenhar_inimigo_coluna:
+			jal desenhar_pixel
+			addi $a0, $a0, 1
+			addi $s0, $s0, -1
+			bgtz $s0, desenhar_inimigo_coluna
+		addi $a1, $a1, 1 # proxima linha
+		addi $s1, $s1, -1
+		bgtz $s1, desenhar_inimigo_linha
+
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 12
+	jr $ra
+
+movimentar_inimigo:# anda 1 pixel na direcao inimigo_dir a cada INIMIGO_SIZE_INCREMENT voltas; inverte a direcao nas bordas
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	#inimigo_incremented_position++
+	#if inimigo_incremented_position < INIMIGO_SIZE_INCREMENT return
+	lw $t0, inimigo_incremented_position
+	addi $t0, $t0, 1
+	sw $t0, inimigo_incremented_position
+	blt $t0, INIMIGO_SIZE_INCREMENT, movimentar_inimigo_fim
+
+	#inimigo_incremented_position = 0
+	sw $zero, inimigo_incremented_position
+
+	#apaga inimigo atual
+	li $a0, PRETO
+	jal desenhar_inimigo
+
+	# proximo_x = inimigo_x + inimigo_dir
+	lw $t0, inimigo_x
+	lw $t1, inimigo_dir
+	add $t2, $t0, $t1
+
+	# if proximo_x saiu dos limites: inimigo_dir = -inimigo_dir e recalcula
+	bgt $t2, INIMIGO_MAX_X, movimentar_inimigo_inverter
+	blt $t2, INIMIGO_MIN_X, movimentar_inimigo_inverter
+	j movimentar_inimigo_andar
+	movimentar_inimigo_inverter:
+		sub $t1, $zero, $t1
+		sw $t1, inimigo_dir
+		add $t2, $t0, $t1
+	movimentar_inimigo_andar:
+		sw $t2, inimigo_x
+
+	#desenha inimigo na nova posicao
+	li $a0, VERM
+	jal desenhar_inimigo
+
+	movimentar_inimigo_fim:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
 	jr $ra
 	
 desenhar_hud_linha:
