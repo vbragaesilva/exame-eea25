@@ -492,6 +492,10 @@ movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SI
 	#tiro_inimigo_incremented_position = 0
 	sw $zero, tiro_inimigo_incremented_position
 
+	# if a nave andou pra cima do tiro: acertou (nao apaga, o pixel agora e da nave)
+	jal tiro_inimigo_acertou_nave
+	bnez $v0, movimentar_tiro_inimigo_acertou
+
 	#apaga tiro atual
 	li $a0, PRETO
 	jal desenhar_tiro_inimigo
@@ -510,6 +514,7 @@ movimentar_tiro_inimigo:# desce o tiro do inimigo 1 pixel a cada TIRO_INIMIGO_SI
 	# if acertou a nave: apaga o tiro, toca o som de dano, perde uma vida e redesenha a nave; return
 	jal tiro_inimigo_acertou_nave
 	beqz $v0, movimentar_tiro_inimigo_desenhar
+	movimentar_tiro_inimigo_acertou:
 	sw $zero, existe_tiro_inimigo
 	jal som_dano
 	jal perder_uma_vida
