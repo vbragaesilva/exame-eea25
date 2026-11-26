@@ -13,6 +13,8 @@
 	.eqv SIZE_INCREMENT 20
 	.eqv INIMIGO_SIZE_INCREMENT 80
 	.eqv PLAYER_MAX_X 51
+	.eqv SCORE_X 60 # x do digito das unidades (a dezena fica 4 colunas a esquerda, em x=56)
+	.eqv SCORE_Y 5  # y da linha de baixo dos digitos (ocupam as linhas 1 a 5; linha 0 e 6 livres)
 	.eqv CORACAO_X 57 # x dos coracoes
 	.eqv CORACAO_Y0 7 # y do primeiro coracao
 	.eqv CORACAO_PASSO 5 # altura 4 + 1 de espaco
@@ -414,6 +416,582 @@ perder_uma_vida:# vidas-- e apaga o coracao de baixo
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	jr $ra
+	
+	
+# ===== numeros do placar =====
+# cada numero ocupa uma caixa 3x5; (x, y) e o canto INFERIOR esquerdo da caixa
+# (o y da tela cresce para baixo, entao subir 1 pixel = y-1)
+
+desenhar_numero_0:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 0 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-1
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_1:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 1 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x+2 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_2:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 2 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x y-1
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_3:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 3 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, -1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_4:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 4 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x+2 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_5:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 5 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_6:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 6 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-1
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_7:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 7 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x+2 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_8:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 8 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x y
+	jal desenhar_pixel
+	
+	#x+1 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-1
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_numero_9:# (a0, a1, a2) = (x, y, cor) -> desenha o numero 9 com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	#x+2 y
+	addi $a0, $a0, 2
+	jal desenhar_pixel
+	
+	#x+2 y-1
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-2
+	addi $a0, $a0, -2
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-2
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-3
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x y-3
+	addi $a0, $a0, -2
+	jal desenhar_pixel
+	
+	#x y-4
+	addi $a1, $a1, -1
+	jal desenhar_pixel
+	
+	#x+1 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+	
+	#x+2 y-4
+	addi $a0, $a0, 1
+	jal desenhar_pixel
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+
+desenhar_digito:# (a0, a1, a2, a3) = (x, y, cor, digito) -> desenha o digito (0 a 9) com o canto inferior esquerdo em (x, y)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	
+	# switch (digito): chama a desenhar_numero certa
+	beq $a3, 0, desenhar_digito_0
+	beq $a3, 1, desenhar_digito_1
+	beq $a3, 2, desenhar_digito_2
+	beq $a3, 3, desenhar_digito_3
+	beq $a3, 4, desenhar_digito_4
+	beq $a3, 5, desenhar_digito_5
+	beq $a3, 6, desenhar_digito_6
+	beq $a3, 7, desenhar_digito_7
+	beq $a3, 8, desenhar_digito_8
+	beq $a3, 9, desenhar_digito_9
+	j desenhar_digito_fim # digito invalido: nao desenha nada
+	desenhar_digito_0:
+		jal desenhar_numero_0
+		j desenhar_digito_fim
+	desenhar_digito_1:
+		jal desenhar_numero_1
+		j desenhar_digito_fim
+	desenhar_digito_2:
+		jal desenhar_numero_2
+		j desenhar_digito_fim
+	desenhar_digito_3:
+		jal desenhar_numero_3
+		j desenhar_digito_fim
+	desenhar_digito_4:
+		jal desenhar_numero_4
+		j desenhar_digito_fim
+	desenhar_digito_5:
+		jal desenhar_numero_5
+		j desenhar_digito_fim
+	desenhar_digito_6:
+		jal desenhar_numero_6
+		j desenhar_digito_fim
+	desenhar_digito_7:
+		jal desenhar_numero_7
+		j desenhar_digito_fim
+	desenhar_digito_8:
+		jal desenhar_numero_8
+		j desenhar_digito_fim
+	desenhar_digito_9:
+		jal desenhar_numero_9
+	desenhar_digito_fim:
+	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
+desenhar_score:# (a0, a1) = (score, cor) -> desenha o score (0 a 20) com 2 digitos: unidade em SCORE_X, dezena a esquerda
+	addi $sp, $sp, -12
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	
+	move $s1, $a1 # s1 = cor
+	
+	# score / 10: lo = quociente = dezena, hi = resto (mod 10) = unidade
+	li $t0, 10
+	div $a0, $t0
+	mflo $s0 # s0 = dezena (guardada para a segunda chamada)
+	mfhi $a3 # a3 = unidade
+	
+	# desenha a unidade em (SCORE_X, SCORE_Y)
+	li $a0, SCORE_X
+	li $a1, SCORE_Y
+	move $a2, $s1
+	jal desenhar_digito
+	
+	# desenha a dezena a esquerda da unidade (3 pixels do digito + 1 de espaco = 4 colunas)
+	li $a0, SCORE_X
+	addi $a0, $a0, -4
+	li $a1, SCORE_Y
+	move $a2, $s1
+	move $a3, $s0
+	jal desenhar_digito
+	
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 12
+	jr $ra
+	
 
 limpar_tela:
 	addi $sp, $sp, -4
