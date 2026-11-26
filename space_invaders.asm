@@ -49,16 +49,7 @@
 	tiro_inimigo_y: .word 0
 	tiro_inimigo_incremented_position: .word 0
 	ultimo_tiro_inimigo: .word 0 # tempo (ms, syscall 30) do ultimo tiro do inimigo
-	# caveira da tela de derrota: 8 linhas de 7 colunas, bit 6 = coluna da esquerda
 	caveira: .word 0x3E, 0x7F, 0x7F, 0x7F, 0x49, 0x49, 0x36, 0x1C
-	#  . X X X X X .   0x3E
-	#  X X X X X X X   0x7F
-	#  X X X X X X X   0x7F
-	#  X X X X X X X   0x7F
-	#  X . . X . . X   0x49
-	#  X . . X . . X   0x49
-	#  . X X . X X .   0x36
-	#  . . X X X . .   0x1C
 	
 
 .text
