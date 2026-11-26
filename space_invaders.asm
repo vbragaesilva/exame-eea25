@@ -269,6 +269,33 @@ atirar: # cria um tiro caso nao exista e toca o som do disparo
 		addi $sp, $sp, 4
 		jr $ra
 
+incrementar_score:# score++ e redesenha o score
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	#apagar score atual
+	lw $a0, score
+	li $a1, PRETO
+	jal desenhar_score
+
+	#score ++
+	lw $t0, score
+	addi $t0, $t0, 1
+	sw $t0, score
+
+	#desenhar score novo
+	move $a0, $t0
+	li $a1, BRANCO
+	jal desenhar_score
+
+	# if score >= 20 end_program
+	lw $t0, score
+	bge $t0, 20, end_program
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
 som_tiro: # toca o som do disparo (syscall 31 = MIDI assincrono, nao trava o jogo)
 	li $a0, 84   # nota (tom agudo)
 	li $a1, 250  # duracao em ms
@@ -341,12 +368,12 @@ movimentar_tiro:
 	j movimentar_tiro_fim
 
 	movimentar_tiro_checar_inimigo:
-	# if acertou o inimigo: deletar_tiro, score++, mata o inimigo; return
+	# if acertou o inimigo: deletar_tiro, mata o inimigo, score++; return
 	jal tiro_acertou_inimigo
 	beqz $v0, movimentar_tiro_desenhar
 	jal deletar_tiro
-	jal incrementar_score
 	jal matar_inimigo
+	jal incrementar_score
 	j movimentar_tiro_fim
 
 	movimentar_tiro_desenhar:
@@ -393,29 +420,6 @@ tiro_acertou_inimigo:# -> v0 = 1 se o tiro (tiro_x, tiro_y) esta dentro do inimi
 	li $v0, 1
 
 	tiro_acertou_inimigo_fim:
-	jr $ra
-
-incrementar_score:# apaga o score antigo, score++ e desenha o novo
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
-
-	#apaga o score atual
-	lw $a0, score
-	li $a1, PRETO
-	jal desenhar_score
-
-	#score++
-	lw $t0, score
-	addi $t0, $t0, 1
-	sw $t0, score
-
-	#desenha o score novo
-	lw $a0, score
-	li $a1, BRANCO
-	jal desenhar_score
-
-	lw $ra, 0($sp)
-	addi $sp, $sp, 4
 	jr $ra
 
 matar_inimigo:# apaga o inimigo, toca o som de explosao e marca como morto (renasce depois de INIMIGO_RESPAWN voltas)
@@ -609,6 +613,10 @@ perder_uma_vida:# vidas-- e apaga o coracao de baixo
 	lw $t0, coracao_atual_y
 	addi $t0, $t0, -CORACAO_PASSO
 	sw $t0, coracao_atual_y
+
+	# if vidas == 0 end_program
+	lw $t0, vidas
+	beqz $t0, end_program
 
 	perder_uma_vida_fim:
 	lw $ra, 0($sp)
