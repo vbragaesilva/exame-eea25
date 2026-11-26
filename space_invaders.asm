@@ -15,6 +15,7 @@
 	.eqv PLAYER_MAX_X 51
 	.eqv INIMIGO_MIN_X 2  # o inimigo ocupa de x-2 ate x+2, entao x >= 2 (borda esquerda da tela)
 	.eqv INIMIGO_MAX_X 51 # e x <= 51 para nao passar de x=53 (antes da linha do HUD)
+	.eqv INIMIGO_RESPAWN 500 # voltas do loop que o inimigo fica morto antes de renascer (~1 s)
 	.eqv SCORE_X 60 # x do digito das unidades (a dezena fica 4 colunas a esquerda, em x=56)
 	.eqv SCORE_Y 5  # y da linha de baixo dos digitos (ocupam as linhas 1 a 5; linha 0 e 6 livres)
 	.eqv CORACAO_X 57 # x dos coracoes
@@ -33,6 +34,8 @@
 	inimigo_y: .word 6
 	inimigo_dir: .word 1
 	inimigo_incremented_position: .word 0
+	inimigo_vivo: .word 1 # 1 = vivo, 0 = morto (esperando renascer)
+	inimigo_timer: .word 0 # voltas desde que o inimigo morreu
 	
 
 .text
@@ -45,14 +48,13 @@ main:    #MAIN
 	jal desenhar_inimigo
 	jal desenhar_hud_linha
 	jal desenhar_hud_vidas
+	lw $a0, score
+	li $a1, BRANCO
+	jal desenhar_score
 	main_loop:
 
 		jal movimentar_inimigo
 
-		# TODO desenhar score
-		
-		
-	
 		jal movimentar_tiro
 		
 		jal movimentar_player
@@ -276,6 +278,15 @@ som_tiro: # toca o som do disparo (syscall 31 = MIDI assincrono, nao trava o jog
 	syscall
 	jr $ra
 
+som_explosao: # toca o som de explosao quando o inimigo e atingido (syscall 31, nao trava o jogo)
+	li $a0, 40   # nota (tom grave)
+	li $a1, 500  # duracao em ms
+	li $a2, 127  # instrumento: Gunshot
+	li $a3, 127  # volume (0-127)
+	li $v0, 31
+	syscall
+	jr $ra
+
 desenhar_tiro:#(cor)
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
@@ -325,10 +336,19 @@ movimentar_tiro:
 	sw $s0, tiro_y
 	
 	# if tiro_y < 0: deletar_tiro; return
-	bgez $s0, movimentar_tiro_desenhar
+	bgez $s0, movimentar_tiro_checar_inimigo
 	jal deletar_tiro
 	j movimentar_tiro_fim
-	
+
+	movimentar_tiro_checar_inimigo:
+	# if acertou o inimigo: deletar_tiro, score++, mata o inimigo; return
+	jal tiro_acertou_inimigo
+	beqz $v0, movimentar_tiro_desenhar
+	jal deletar_tiro
+	jal incrementar_score
+	jal matar_inimigo
+	j movimentar_tiro_fim
+
 	movimentar_tiro_desenhar:
 	li $a0, BRANCO
 	jal desenhar_tiro
@@ -345,6 +365,101 @@ movimentar_tiro:
 deletar_tiro: # existe_tiro = 0
 	li $t0, 0
 	sw $t0, existe_tiro
+	jr $ra
+
+tiro_acertou_inimigo:# -> v0 = 1 se o tiro (tiro_x, tiro_y) esta dentro do inimigo vivo, senao v0 = 0
+	li $v0, 0
+
+	# if not inimigo_vivo return 0
+	lw $t0, inimigo_vivo
+	beqz $t0, tiro_acertou_inimigo_fim
+
+	# if tiro_y < inimigo_y or tiro_y > inimigo_y+1 return 0
+	lw $t0, tiro_y
+	lw $t1, inimigo_y
+	blt $t0, $t1, tiro_acertou_inimigo_fim
+	addi $t1, $t1, 1
+	bgt $t0, $t1, tiro_acertou_inimigo_fim
+
+	# if tiro_x < inimigo_x-2 or tiro_x > inimigo_x+2 return 0
+	lw $t0, tiro_x
+	lw $t1, inimigo_x
+	addi $t2, $t1, -2
+	blt $t0, $t2, tiro_acertou_inimigo_fim
+	addi $t2, $t1, 2
+	bgt $t0, $t2, tiro_acertou_inimigo_fim
+
+	# acertou
+	li $v0, 1
+
+	tiro_acertou_inimigo_fim:
+	jr $ra
+
+incrementar_score:# apaga o score antigo, score++ e desenha o novo
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	#apaga o score atual
+	lw $a0, score
+	li $a1, PRETO
+	jal desenhar_score
+
+	#score++
+	lw $t0, score
+	addi $t0, $t0, 1
+	sw $t0, score
+
+	#desenha o score novo
+	lw $a0, score
+	li $a1, BRANCO
+	jal desenhar_score
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+matar_inimigo:# apaga o inimigo, toca o som de explosao e marca como morto (renasce depois de INIMIGO_RESPAWN voltas)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	#apaga o inimigo
+	li $a0, PRETO
+	jal desenhar_inimigo
+
+	jal som_explosao
+
+	#inimigo_vivo = 0, inimigo_timer = 0
+	sw $zero, inimigo_vivo
+	sw $zero, inimigo_timer
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
+renascer_inimigo:# o inimigo volta num x aleatorio entre INIMIGO_MIN_X e INIMIGO_MAX_X, andando para a direita
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	# x aleatorio: syscall 42 sorteia 0 <= a0 < a1
+	li $a0, 0  # id do gerador de numeros aleatorios
+	li $a1, 50 # INIMIGO_MAX_X - INIMIGO_MIN_X + 1 = 51 - 2 + 1 = 50 posicoes
+	li $v0, 42
+	syscall
+	addi $a0, $a0, INIMIGO_MIN_X
+	sw $a0, inimigo_x
+
+	#inimigo_dir = 1 (direita), inimigo_vivo = 1, zera o contador de movimento
+	li $t0, 1
+	sw $t0, inimigo_dir
+	sw $t0, inimigo_vivo
+	sw $zero, inimigo_incremented_position
+
+	#desenha o inimigo
+	li $a0, VERM
+	jal desenhar_inimigo
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
 	jr $ra
 	
 	
@@ -380,6 +495,17 @@ movimentar_inimigo:# anda 1 pixel na direcao inimigo_dir a cada INIMIGO_SIZE_INC
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 
+	# if inimigo morto: inimigo_timer++ e renasce quando chegar em INIMIGO_RESPAWN
+	lw $t0, inimigo_vivo
+	bnez $t0, movimentar_inimigo_vivo
+	lw $t0, inimigo_timer
+	addi $t0, $t0, 1
+	sw $t0, inimigo_timer
+	blt $t0, INIMIGO_RESPAWN, movimentar_inimigo_fim
+	jal renascer_inimigo
+	j movimentar_inimigo_fim
+
+	movimentar_inimigo_vivo:
 	#inimigo_incremented_position++
 	#if inimigo_incremented_position < INIMIGO_SIZE_INCREMENT return
 	lw $t0, inimigo_incremented_position
