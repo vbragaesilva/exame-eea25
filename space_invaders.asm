@@ -305,9 +305,14 @@ incrementar_score:# score++ e redesenha o score
 	li $a1, BRANCO
 	jal desenhar_score
 
-	# if score >= 20 end_program
+	# if score >= 20: toca o Rick Roll e encerra o jogo
+	# (para mover/remover a feature, basta mexer nesta chamada e na rick_rolling)
 	lw $t0, score
-	bge $t0, 20, end_program
+	blt $t0, 20, incrementar_score_fim
+	jal rick_rolling
+	j end_program
+
+	incrementar_score_fim:
 
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
@@ -1330,6 +1335,92 @@ sleep1:
 	li $v0, 32
 	li $a0, 1
 	syscall
+	jr $ra
+
+# ===== rick rolling =====
+# Feature independente: so precisa da funcao rick_rolling (e da tabela rick_musica logo abaixo).
+# Para mudar de lugar, basta mover a chamada "jal rick_rolling" para onde quiser.
+# Nao usa nada do resto do jogo; preserva $ra e os $s que usa.
+# Melodia aproximada de "Never Gonna Give You Up" (tom de Lab maior), escrita de memoria/ouvido.
+.data
+	.eqv RICK_UNIDADE_MS 133 # duracao de 1 unidade (semicolcheia) em ms: ~113 bpm
+	.eqv RICK_MELODIA_INSTR 80 # Lead 1 (square): timbre de chiptune, combina com Space Invaders
+	.eqv RICK_BAIXO_INSTR 38   # Synth Bass 1
+	# cada linha: nota da melodia (MIDI, 0 = pausa), nota do baixo (0 = nenhuma), duracao em unidades; duracao 0 = fim
+	rick_musica:
+	# "Never gonna give you up"  (Mib Fa Lab Fa | Do Do Sib)
+	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 72,41,3, 72,0,3, 70,39,6, 0,0,12
+	# "Never gonna let you down" (Mib Fa Lab Fa | Sib Sib Lab)
+	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 70,41,3, 70,0,3, 68,44,6, 0,0,12
+	# "Never gonna run around and desert you" (Mib Fa Lab Fa | Lab Sib Sol Fa Mib)
+	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 68,41,3, 70,0,2, 67,0,3, 65,39,3, 63,0,3, 0,0,10
+	# "Never gonna give you up" de novo, final mais longo
+	.word 63,44,2, 65,0,2, 68,44,2, 65,0,2, 72,41,3, 72,0,3, 70,39,10, 0,0,0
+.text
+
+rick_rolling:# toca a musica inteira; o ritmo e controlado pelo relogio do sistema (syscall 30), sem acumular atraso
+	addi $sp, $sp, -16
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+
+	la $s0, rick_musica # s0 = ponteiro para a proxima nota
+
+	# s1 = instante (ms) em que a proxima nota deve comecar
+	li $v0, 30
+	syscall
+	move $s1, $a0
+
+	rick_rolling_nota:
+		lw $s2, 8($s0) # s2 = duracao em unidades
+		beqz $s2, rick_rolling_fim
+
+		# duracao em ms = unidades * RICK_UNIDADE_MS
+		li $t0, RICK_UNIDADE_MS
+		mul $s2, $s2, $t0
+
+		# melodia (se nota != 0): syscall 31 e assincrona, toca sozinha pela duracao informada
+		lw $a0, 0($s0)
+		beqz $a0, rick_rolling_baixo
+		addi $a1, $s2, -15 # um respiro entre notas iguais
+		li $a2, RICK_MELODIA_INSTR
+		li $a3, 100
+		li $v0, 31
+		syscall
+
+		rick_rolling_baixo:
+		lw $a0, 4($s0)
+		beqz $a0, rick_rolling_esperar
+		move $a1, $s2
+		li $a2, RICK_BAIXO_INSTR
+		li $a3, 80
+		li $v0, 31
+		syscall
+
+		rick_rolling_esperar:
+		# proximo_inicio += duracao; espera o relogio chegar la
+		addu $s1, $s1, $s2
+		rick_rolling_relogio:
+			li $v0, 30
+			syscall
+			subu $t0, $s1, $a0
+			bgtz $t0, rick_rolling_relogio
+
+		addi $s0, $s0, 12 # proxima linha da tabela (3 words)
+		j rick_rolling_nota
+
+	rick_rolling_fim:
+	# deixa a ultima nota terminar de soar antes de encerrar o programa
+	li $v0, 32
+	li $a0, 800
+	syscall
+
+	lw $s2, 12($sp)
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 16
 	jr $ra
 
 end_program:
