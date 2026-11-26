@@ -14,7 +14,7 @@
 	.eqv INIMIGO_SIZE_INCREMENT 80
 	.eqv PLAYER_MAX_X 51
 	.eqv SCORE_X 60 # x do digito das unidades (a dezena fica 4 colunas a esquerda, em x=56)
-	.eqv SCORE_Y 4  # y da linha de baixo dos digitos (ocupam as linhas 0 a 4, topo da tela)
+	.eqv SCORE_Y 5  # y da linha de baixo dos digitos (ocupam as linhas 1 a 5; linha 0 e 6 livres)
 	player_x: .word 32
 	player_y: .word 28
 	vidas: .word 5
